@@ -1,0 +1,293 @@
+async function renderDetalle(id) {
+  const el = document.getElementById('view-detalle');
+  el.innerHTML = `<div class="spinner"></div>`;
+  try {
+    const d = await API.get(`/diligencias/${id}`);
+    const days = daysUntil(d.termino_fecha);
+    const tieneFinal = d.seguimiento.some(s => s.tipo === 'final');
+
+    el.innerHTML = `
+      <div class="page-header">
+        <div>
+          <button class="btn btn-outline btn-sm" onclick="navigate('lista')" style="margin-bottom:8px;">← Regresar</button>
+          <div class="page-title">${d.folio}</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+            ${estadoBadge(d.estado)}
+            ${d.tiene_termino_legal ? terminoBadge(d) : ''}
+            ${d.tiene_anexos ? '<span class="badge" style="background:var(--blue-light);color:var(--blue);">📎 Con Anexos</span>' : ''}
+          </div>
+        </div>
+        <div class="btn-group">
+          <select id="cambio-estado" onchange="cambiarEstado(${d.id}, this.value, ${tieneFinal})" class="btn btn-outline">
+            <option value="">Cambiar estado...</option>
+            ${['pendiente','en_proceso','entregado','no_entregado','cancelado'].map(e =>
+              `<option value="${e}" ${d.estado===e?'selected':''}>${{pendiente:'Pendiente',en_proceso:'En Proceso',entregado:'Entregado',no_entregado:'No Entregado',cancelado:'Cancelado'}[e]}</option>`
+            ).join('')}
+          </select>
+          ${!['entregado','cancelado'].includes(d.estado) ? `<button class="btn btn-primary" onclick="openSeguimientoModal(${d.id})">📦 Registrar Tramo</button>` : ''}
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;">
+        <div>
+          <!-- Documento -->
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><h3>Datos del Documento</h3></div>
+            <div class="card-body">
+              <div class="detail-grid">
+                <div class="detail-item"><label>Número de Oficio</label><span style="font-weight:700;font-size:16px;">${d.numero_oficio}</span></div>
+                <div class="detail-item"><label>ID SAI</label><span>${d.id_sai || '—'}</span></div>
+                <div class="detail-item"><label>Área Requirente</label><span>${d.area_requirente}</span></div>
+                <div class="detail-item"><label>Registrado</label><span>${formatDatetime(d.created_at)}</span></div>
+                <div class="detail-item"><label>Registrado por</label><span>${d.creado_por_nombre || '—'}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Autoridad -->
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><h3>Autoridad a Notificar</h3></div>
+            <div class="card-body">
+              <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:12px;">${d.autoridad_nombre}</div>
+              <div style="font-size:14px;line-height:1.8;color:var(--gray-700);">
+                ${d.autoridad_domicilio}${d.autoridad_colonia ? `, Col. ${d.autoridad_colonia}` : ''}
+                ${d.autoridad_municipio ? `<br>${d.autoridad_municipio}` : ''}
+                ${d.autoridad_estado ? `, ${d.autoridad_estado}` : ''}
+                ${d.autoridad_cp ? ` C.P. ${d.autoridad_cp}` : ''}
+              </div>
+              ${d.autoridad_referencia ? `<div style="margin-top:10px;padding:10px;background:var(--gray-50);border-radius:var(--radius-sm);font-size:13px;color:var(--gray-500);">📍 ${d.autoridad_referencia}</div>` : ''}
+              <div style="margin-top:12px;">
+                <a href="https://maps.google.com/?q=${encodeURIComponent(d.autoridad_domicilio + ' ' + (d.autoridad_municipio||'') + ' ' + (d.autoridad_estado||''))}" target="_blank" class="btn btn-outline btn-sm">🗺️ Ver en Google Maps</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Seguimiento -->
+          <div class="card">
+            <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+              <h3>Historial de Seguimiento</h3>
+              ${!['entregado','cancelado'].includes(d.estado) ? `<button class="btn btn-primary btn-sm" onclick="openSeguimientoModal(${d.id})">📦 Registrar Tramo</button>` : ''}
+            </div>
+            <div class="card-body">
+              ${buildHistorial(d.seguimiento)}
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar detalle -->
+        <div>
+          ${d.tiene_termino_legal ? `
+          <div class="card" style="margin-bottom:16px;border:1.5px solid ${days <= 0 ? 'var(--red)' : days <= 3 ? 'var(--orange)' : 'var(--gray-200)'};">
+            <div class="card-header" style="background:${days <= 0 ? 'var(--red-light)' : days <= 3 ? 'var(--orange-light)' : 'var(--gray-50)'};">
+              <h3>⚖️ Término Legal</h3>
+            </div>
+            <div class="card-body">
+              <div class="detail-item" style="margin-bottom:10px;"><label>Fecha Límite</label><span style="font-weight:700;">${formatDate(d.termino_fecha)}</span></div>
+              ${d.termino_hora ? `<div class="detail-item" style="margin-bottom:10px;"><label>Hora Límite</label><span>${d.termino_hora}</span></div>` : ''}
+              ${days !== null ? `<div style="margin:12px 0;">${terminoBadge(d)}</div>` : ''}
+              ${d.termino_observaciones ? `<div style="font-size:13px;color:var(--gray-600);padding:10px;background:var(--gray-50);border-radius:var(--radius-sm);">${d.termino_observaciones}</div>` : ''}
+            </div>
+          </div>` : ''}
+
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-header"><h3>Contacto Solicitante</h3></div>
+            <div class="card-body">
+              ${d.contacto_nombre ? `<div class="detail-item" style="margin-bottom:8px;"><label>Nombre</label><span>${d.contacto_nombre}</span></div>` : ''}
+              ${d.contacto_email ? `<div class="detail-item" style="margin-bottom:8px;"><label>Email</label><a href="mailto:${d.contacto_email}" style="color:var(--navy);">${d.contacto_email}</a></div>` : ''}
+              ${d.contacto_telefono ? `<div class="detail-item"><label>Teléfono</label><span>${d.contacto_telefono}</span></div>` : ''}
+              ${!d.contacto_nombre && !d.contacto_email && !d.contacto_telefono ? '<p style="color:var(--gray-500);font-size:13px;">Sin datos de contacto</p>' : ''}
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h3>Estado Actual</h3></div>
+            <div class="card-body" style="text-align:center;">
+              <div style="font-size:48px;margin-bottom:8px;">${{pendiente:'⏳',en_proceso:'🔄',entregado:'✅',no_entregado:'❌',cancelado:'🚫'}[d.estado]}</div>
+              ${estadoBadge(d.estado)}
+              <div style="font-size:12px;color:var(--gray-500);margin-top:8px;">${formatDatetime(d.updated_at)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+}
+
+async function cambiarEstado(id, estado, tieneFinal) {
+  if (!estado) return;
+  if (estado === 'entregado' && !tieneFinal) {
+    document.getElementById('cambio-estado').value = '';
+    toast('Completa el formulario de entrega final para marcar como Entregado', 'warning');
+    openSeguimientoModal(id, true);
+    return;
+  }
+  try {
+    await API.patch(`/diligencias/${id}/estado`, { estado });
+    toast('Estado actualizado', 'success');
+    renderDetalle(id);
+  } catch(e) {
+    toast(e.message, 'error');
+  }
+}
+
+function openSeguimientoModal(id, preCheckFinal = false) {
+  const today = new Date().toISOString().split('T')[0];
+  openModal('Registrar Tramo de Seguimiento', `
+    <form id="form-seguimiento">
+      <div class="form-grid">
+        <div class="field-group">
+          <label>Fecha <span class="req">*</span></label>
+          <input type="date" name="fecha_entrega" value="${today}" required>
+        </div>
+        <div class="field-group">
+          <label>Hora</label>
+          <input type="time" name="hora_entrega">
+        </div>
+        <div class="field-group full-width">
+          <label id="lbl-lugar">Punto de Control / Tramo</label>
+          <input type="text" name="lugar" placeholder="Ej. Oficialía de Partes, Edificio Central...">
+        </div>
+        <div class="field-group full-width">
+          <label id="lbl-recibio">Responsable en este Tramo <span class="req">*</span></label>
+          <input type="text" name="nombre_recibio" placeholder="Nombre completo" required>
+        </div>
+        <div class="field-group full-width">
+          <label>Observaciones</label>
+          <textarea name="observaciones" placeholder="Notas sobre este tramo..."></textarea>
+        </div>
+        <div class="field-group full-width">
+          <label>Constancia / Acuse (PDF)</label>
+          <div class="file-upload-area" onclick="document.getElementById('acuse-file').click()" id="upload-area">
+            <div class="upload-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="upload-text">Clic para subir PDF</div>
+            <div class="upload-hint">Máximo 10 MB · Solo PDF</div>
+          </div>
+          <input type="file" id="acuse-file" accept=".pdf" style="display:none" onchange="fileSelected(this)">
+        </div>
+        <div class="field-group full-width" style="background:var(--green-light);border-radius:var(--radius-sm);padding:12px;border:1px solid rgba(5,150,105,.25);">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;color:var(--success);">
+            <input type="checkbox" id="es-entrega-final" onchange="toggleEntregaFinal(this)" style="width:16px;height:16px;cursor:pointer;">
+            ✅ Marcar como entrega final al destinatario
+          </label>
+          <div style="font-size:12px;color:var(--gray-500);margin-top:4px;margin-left:26px;">Al activar esta opción, el estado cambiará a "Entregado"</div>
+        </div>
+      </div>
+      <div id="seg-error" class="alert alert-error" style="display:none;margin-top:16px;"></div>
+      <div class="btn-group" style="margin-top:20px;justify-content:flex-end;">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+        <button type="submit" id="btn-guardar-seg" class="btn btn-primary">📦 Registrar Tramo</button>
+      </div>
+    </form>
+  `);
+
+  if (preCheckFinal) {
+    const cb = document.getElementById('es-entrega-final');
+    if (cb) { cb.checked = true; toggleEntregaFinal(cb); }
+  }
+
+  document.getElementById('form-seguimiento').onsubmit = async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('seg-error');
+    errEl.style.display = 'none';
+    const fd = new FormData(e.target);
+    const esFinal = document.getElementById('es-entrega-final').checked;
+    fd.append('tipo', esFinal ? 'final' : 'parcial');
+    const fileInput = document.getElementById('acuse-file');
+    if (fileInput.files[0]) fd.append('archivo_acuse', fileInput.files[0]);
+    try {
+      await API.postForm(`/diligencias/${id}/seguimiento`, fd);
+      closeModal();
+      toast(esFinal ? '✅ Entrega final registrada' : '📦 Tramo registrado correctamente', 'success');
+      renderDetalle(id);
+    } catch(err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+    }
+  };
+}
+
+function toggleEntregaFinal(cb) {
+  const btn = document.getElementById('btn-guardar-seg');
+  const lblLugar = document.getElementById('lbl-lugar');
+  const lblRecibio = document.getElementById('lbl-recibio');
+  if (cb.checked) {
+    btn.textContent = '✓ Confirmar Entrega Final';
+    btn.className = 'btn btn-success';
+    lblLugar.textContent = 'Ubicación / Domicilio de Entrega';
+    lblRecibio.innerHTML = 'Nombre de quien Recibió <span class="req">*</span>';
+  } else {
+    btn.textContent = '📦 Registrar Tramo';
+    btn.className = 'btn btn-primary';
+    lblLugar.textContent = 'Punto de Control / Tramo';
+    lblRecibio.innerHTML = 'Responsable en este Tramo <span class="req">*</span>';
+  }
+}
+
+function fileSelected(input) {
+  const area = document.getElementById('upload-area');
+  if (input.files[0]) {
+    area.classList.add('has-file');
+    area.querySelector('.upload-text').textContent = `✓ ${input.files[0].name}`;
+  }
+}
+
+function tramoHtml(s) {
+  const esParcial = s.tipo === 'parcial';
+  const dotBg   = esParcial ? 'var(--info)' : 'var(--success)';
+  const dotIcon  = esParcial ? '🚚' : '✓';
+  const titulo   = esParcial
+    ? `Tramo registrado el ${formatDate(s.fecha_entrega)}${s.hora_entrega ? ' a las ' + s.hora_entrega : ''}`
+    : `Entrega final el ${formatDate(s.fecha_entrega)}${s.hora_entrega ? ' a las ' + s.hora_entrega : ''}`;
+  return `
+    <div class="timeline-item">
+      <div class="timeline-dot" style="background:${dotBg};">${dotIcon}</div>
+      <div class="timeline-content">
+        <div class="timeline-title">${titulo}</div>
+        ${s.lugar ? `<div style="font-size:12px;color:var(--info);font-weight:600;margin-top:2px;">📍 ${s.lugar}</div>` : ''}
+        <div class="timeline-meta">
+          ${s.nombre_recibio ? `${esParcial ? 'Responsable' : 'Recibió'}: <strong>${s.nombre_recibio}</strong> · ` : ''}
+          Por: ${s.registrado_por_nombre || '—'}
+        </div>
+        ${s.observaciones ? `<div style="font-size:13px;color:var(--gray-600);margin-top:4px;">${s.observaciones}</div>` : ''}
+        ${s.archivo_acuse ? `<a href="${s.archivo_acuse}" target="_blank" class="btn btn-outline btn-sm" style="margin-top:8px;">📄 Ver Acuse PDF</a>` : ''}
+      </div>
+    </div>`;
+}
+
+function buildHistorial(seguimiento) {
+  if (seguimiento.length === 0) {
+    return `<div class="empty-state" style="padding:30px;"><p>Sin tramos de seguimiento registrados aún</p></div>`;
+  }
+  const ultimo     = seguimiento[seguimiento.length - 1];
+  const anteriores = seguimiento.slice(0, -1);
+  const n          = anteriores.length;
+  return `
+    <div class="timeline">
+      ${n > 0 ? `
+        <div id="tramos-anteriores" style="display:none;">
+          ${anteriores.map(tramoHtml).join('')}
+        </div>
+        <div style="margin-bottom:14px;">
+          <button class="btn btn-outline btn-sm" onclick="toggleTramosAnteriores(this)">
+            📋 Ver ${n} tramo${n !== 1 ? 's' : ''} anterior${n !== 1 ? 'es' : ''}
+          </button>
+        </div>
+      ` : ''}
+      ${tramoHtml(ultimo)}
+    </div>`;
+}
+
+function toggleTramosAnteriores(btn) {
+  const container = document.getElementById('tramos-anteriores');
+  if (!container) return;
+  const visible = container.style.display !== 'none';
+  container.style.display = visible ? 'none' : 'block';
+  const n = container.querySelectorAll('.timeline-item').length;
+  btn.textContent = visible
+    ? `📋 Ver ${n} tramo${n !== 1 ? 's' : ''} anterior${n !== 1 ? 'es' : ''}`
+    : `🔼 Ocultar tramos anteriores`;
+}

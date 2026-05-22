@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Diligencias – INE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- Login -->
+    <div id="login-screen" class="login-page">
+      <div class="login-card">
+        <div class="login-logo">
+          <div class="logo-badge-md"><div class="diamond"></div></div>
+          <div class="login-logo-text">
+            <span class="login-org">INE</span>
+            <span class="login-dept">Instituto Nacional Electoral</span>
+          </div>
+        </div>
+        <h1 class="login-title">Sistema de Diligencias</h1>
+        <p class="login-subtitle">Calendarización y Seguimiento de Notificaciones</p>
+        <form class="login-form" id="login-form">
+          <div class="form-group">
+            <label>Correo electrónico</label>
+            <input type="email" id="login-email" placeholder="usuario@ine.mx" required autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label>Contraseña</label>
+            <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+          <div id="login-error" class="form-error" style="display:none"></div>
+          <button type="submit" id="login-btn" class="btn btn-full" style="margin-top:8px">Iniciar Sesión</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-app" class="app" style="display:none">
+
+      <!-- Top Navigation -->
+      <header class="topnav">
+        <div class="topnav-brand">
+          <div class="logo-badge-sm"><div class="diamond"></div></div>
+          <div>
+            <div class="topnav-org">INE</div>
+            <div class="topnav-sys">Diligencias</div>
+          </div>
+        </div>
+
+        <nav class="topnav-nav" id="topnav-nav">
+          <button class="nav-item active" data-view="dashboard">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span class="nav-label">Dashboard</span>
+          </button>
+          <button class="nav-item" data-view="nueva">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <span class="nav-label">Nueva Diligencia</span>
+          </button>
+          <button class="nav-item" data-view="lista">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            <span class="nav-label">Diligencias</span>
+          </button>
+          <button class="nav-item" data-view="calendario">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="nav-label">Calendario</span>
+          </button>
+          <div class="nav-separator" id="admin-nav" style="display:none"></div>
+          <button class="nav-item" data-view="usuarios" id="nav-usuarios" style="display:none">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span class="nav-label">Usuarios</span>
+          </button>
+        </nav>
+
+        <div class="topnav-user">
+          <div class="user-info">
+            <div class="user-avatar" id="user-avatar">U</div>
+            <div class="user-details">
+              <div class="user-name" id="user-name">Usuario</div>
+              <div class="user-role" id="user-role"></div>
+            </div>
+            <span class="user-caret">▾</span>
+          </div>
+          <a href="http://localhost:5174" title="Volver al portal" class="btn-logout" style="display:flex;align-items:center;gap:4px;text-decoration:none;font-size:12px;font-weight:600;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <span class="hidden-mobile">Portal</span>
+          </a>
+          <button class="btn-logout" id="btn-logout" title="Cerrar sesión">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+          <button class="nav-hamburger" id="nav-hamburger" aria-label="Menú">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main content -->
+      <main class="main-content">
+        <div id="view-dashboard" class="view" style="display:none"></div>
+        <div id="view-nueva" class="view" style="display:none"></div>
+        <div id="view-lista" class="view" style="display:none"></div>
+        <div id="view-calendario" class="view" style="display:none"></div>
+        <div id="view-detalle" class="view" style="display:none"></div>
+        <div id="view-usuarios" class="view" style="display:none"></div>
+      </main>
+
+      <footer class="app-footer">
+        <div class="app-footer-inner">
+          <div class="app-footer-brand">
+            <div class="logo-badge-sm" style="opacity:.5"><div class="diamond" style="width:10px;height:10px"></div></div>
+            Instituto Nacional Electoral &mdash; Sistema de Diligencias
+          </div>
+          <span class="app-footer-copy">&copy; 2025 INE</span>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal-overlay" class="modal-overlay" style="display:none">
+    <div class="modal modal-lg" id="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Modal</h2>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast-container"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/views/dashboard.js"></script>
+  <script src="/js/views/nueva.js"></script>
+  <script src="/js/views/lista.js"></script>
+  <script src="/js/views/detalle.js"></script>
+  <script src="/js/views/calendario.js"></script>
+  <script src="/js/views/usuarios.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
