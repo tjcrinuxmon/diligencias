@@ -56,9 +56,9 @@ router.get('/sso', (req, res) => {
     req.session.userId   = user.id;
     req.session.userRol  = user.rol;
     req.session.userName = user.nombre;
-    res.redirect('/');
+    res.redirect('/diligencias');
   } catch {
-    res.redirect('/?error=invalid_token');
+    res.redirect('/diligencias?error=invalid_token');
   }
 });
 

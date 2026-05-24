@@ -3,33 +3,17 @@ let currentView = 'dashboard';
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
-  // Login form
-  document.getElementById('login-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const errEl = document.getElementById('login-error');
-    errEl.style.display = 'none';
-    const email = document.getElementById('login-email').value;
-    const password = document.getElementById('login-password').value;
-    const btn = e.target.querySelector('button[type=submit]');
-    btn.disabled = true; btn.textContent = 'Iniciando sesión...';
-    try {
-      const user = await API.post('/auth/login', { email, password });
-      currentUser = user;
-      showApp(user);
-    } catch(err) {
-      errEl.textContent = err.message;
-      errEl.style.display = 'block';
-      btn.disabled = false; btn.textContent = 'Iniciar Sesión';
-    }
-  });
+  // SSO desde el portal
+  const ssoToken = new URLSearchParams(location.search).get('sso_token')
+  if (ssoToken) { window.location.href = `/api/dil/auth/sso?sso_token=${ssoToken}`; return }
 
-  // Check existing session
+  // Check existing session — if none, redirect to portal
   try {
     const user = await API.get('/auth/me');
     currentUser = user;
     showApp(user);
   } catch {
-    // Not logged in, show login
+    window.location.replace('/');
   }
 });
 
@@ -48,12 +32,10 @@ function showApp(user) {
     document.getElementById('nav-usuarios').style.display = 'flex';
   }
 
-  // Logout
+  // Logout → portal
   document.getElementById('btn-logout').onclick = async () => {
-    await API.post('/auth/logout', {});
-    currentUser = null;
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('main-app').style.display = 'none';
+    try { await API.post('/auth/logout', {}); } catch {}
+    window.location.replace('/');
   };
 
   // Nav items

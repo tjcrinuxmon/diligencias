@@ -4,7 +4,7 @@ const API = {
     const opts = { method, headers: {} };
     if (data && !isFormData) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(data); }
     if (data && isFormData) { opts.body = data; }
-    const res = await fetch('/api' + url, opts);
+    const res = await fetch('/api/dil' + url, opts);
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || 'Error del servidor');
     return json;

@@ -24,10 +24,9 @@ app.use(session({
   cookie: { secure: false, maxAge: 8 * 60 * 60 * 1000 } // 8 horas
 }));
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
+app.use('/api/auth',        require('./routes/auth'));
+app.use('/api/usuarios',    require('./routes/usuarios'));
 app.use('/api/diligencias', require('./routes/diligencias'));
-app.use('/api/usuarios', require('./routes/usuarios'));
 
 // Serve SPA
 app.get('*', (req, res) => {
