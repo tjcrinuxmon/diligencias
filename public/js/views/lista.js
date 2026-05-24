@@ -128,8 +128,18 @@ async function loadDiligencias() {
           <td>${terminoBadge(d)}</td>
           <td>${estadoBadge(d.estado)}</td>
           <td><span style="font-size:12px;color:var(--gray-500);">${formatDate(d.created_at)}</span></td>
-          <td>
-            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); navigate('detalle', ${d.id})">Ver</button>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-outline btn-sm icon-btn" title="Ver detalle" onclick="event.stopPropagation(); navigate('detalle', ${d.id})">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            ${(currentUser && (currentUser.id === d.creado_por || currentUser.rol === 'admin')) ? `
+            <button class="btn btn-outline btn-sm icon-btn" title="Editar" style="margin-left:4px;" onclick="event.stopPropagation(); openEditarModal(${d.id})">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>` : ''}
+            ${(currentUser && currentUser.id === d.creado_por) ? `
+            <button class="btn btn-outline btn-sm icon-btn" title="Eliminar" style="margin-left:4px;color:var(--red);" onclick="event.stopPropagation(); eliminarDiligencia(${d.id}, '${d.folio}')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </button>` : ''}
           </td>
         </tr>
       `).join('');
@@ -161,6 +171,31 @@ async function changePage(p) {
   listaPage = p;
   await loadDiligencias();
   document.querySelector('.main-content').scrollTop = 0;
+}
+
+async function eliminarDiligencia(id, folio) {
+  openModal('Eliminar Diligencia', `
+    <div style="text-align:center;padding:16px 0;">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.5" style="margin-bottom:12px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <p style="font-size:15px;margin-bottom:6px;">¿Eliminar la diligencia <strong>${folio}</strong>?</p>
+      <p style="font-size:13px;color:var(--gray-500);">Esta acción no se puede deshacer. Se eliminarán también los archivos adjuntos y el historial de seguimiento.</p>
+    </div>
+    <div class="btn-group" style="justify-content:flex-end;margin-top:8px;">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn" style="background:var(--red);color:#fff;" id="btn-confirmar-eliminar">Eliminar</button>
+    </div>
+  `);
+
+  document.getElementById('btn-confirmar-eliminar').onclick = async () => {
+    try {
+      await API.delete(`/diligencias/${id}`);
+      closeModal();
+      toast(`Diligencia ${folio} eliminada`, 'success');
+      await loadDiligencias();
+    } catch(err) {
+      toast(err.message, 'error');
+    }
+  };
 }
 
 async function exportarPDF() {

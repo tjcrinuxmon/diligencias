@@ -18,6 +18,7 @@ async function renderDetalle(id) {
           </div>
         </div>
         <div class="btn-group">
+          ${(currentUser && (currentUser.id === d.creado_por || currentUser.rol === 'admin')) ? `<button class="btn btn-outline" onclick="openEditarModal(${d.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:middle;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Editar</button>` : ''}
           <select id="cambio-estado" onchange="cambiarEstado(${d.id}, this.value, ${tieneFinal})" class="btn btn-outline">
             <option value="">Cambiar estado...</option>
             ${['pendiente','en_proceso','entregado','no_entregado','cancelado'].map(e =>
@@ -51,7 +52,7 @@ async function renderDetalle(id) {
             <div class="card-body">
               <div class="doc-list">
                 ${d.documentos.map(doc => `
-                  <a href="${doc.archivo}" target="_blank" class="doc-item">
+                  <a href="/api/dil${doc.archivo}" target="_blank" class="doc-item">
                     <span class="doc-item-icon">${docIcon(doc.nombre_original)}</span>
                     <span class="doc-item-name" title="${doc.nombre_original}">${doc.nombre_original}</span>
                     <span class="doc-item-meta">${doc.tamanio ? dzSizeDetalle(doc.tamanio) : ''}</span>
@@ -271,7 +272,7 @@ function tramoHtml(s) {
           Por: ${s.registrado_por_nombre || '—'}
         </div>
         ${s.observaciones ? `<div style="font-size:13px;color:var(--gray-600);margin-top:4px;">${s.observaciones}</div>` : ''}
-        ${s.archivo_acuse ? `<a href="${s.archivo_acuse}" target="_blank" class="btn btn-outline btn-sm" style="margin-top:8px;">📄 Ver Acuse PDF</a>` : ''}
+        ${s.archivo_acuse ? `<a href="/api/dil${s.archivo_acuse}" target="_blank" class="btn btn-outline btn-sm" style="margin-top:8px;">📄 Ver Acuse PDF</a>` : ''}
       </div>
     </div>`;
 }
@@ -321,4 +322,228 @@ function toggleTramosAnteriores(btn) {
   btn.textContent = visible
     ? `📋 Ver ${n} tramo${n !== 1 ? 's' : ''} anterior${n !== 1 ? 'es' : ''}`
     : `🔼 Ocultar tramos anteriores`;
+}
+
+async function openEditarModal(id) {
+  let d;
+  try { d = await API.get(`/diligencias/${id}`); } catch(e) { toast(e.message, 'error'); return; }
+
+  const areasOptions = AREAS.map(a => `<option value="${a}" ${d.area_requirente===a?'selected':''}>${a}</option>`).join('');
+
+  // Track files to delete and new files to add
+  let editDocsToDelete = new Set();
+  let editNewFiles = [];
+
+  openModal('Editar Diligencia', `
+    <form id="form-editar" style="max-height:70vh;overflow-y:auto;padding-right:4px;">
+      <div class="form-grid">
+        <div class="field-group">
+          <label>Área Requirente <span class="req">*</span></label>
+          <select name="area_requirente" required>
+            <option value="">— Seleccionar —</option>${areasOptions}
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Número de Oficio <span class="req">*</span></label>
+          <input type="text" name="numero_oficio" value="${d.numero_oficio || ''}" required>
+        </div>
+        <div class="field-group">
+          <label>ID SAI</label>
+          <input type="number" name="id_sai" value="${d.id_sai || ''}" min="0" step="1" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+        </div>
+        <div class="field-group full-width">
+          <label>Autoridad / Institución <span class="req">*</span></label>
+          <input type="text" name="autoridad_nombre" value="${d.autoridad_nombre || ''}" required>
+        </div>
+        <div class="field-group full-width">
+          <label>Calle y Número <span class="req">*</span></label>
+          <input type="text" name="autoridad_domicilio" value="${d.autoridad_domicilio || ''}" required>
+        </div>
+        <div class="field-group">
+          <label>Colonia</label>
+          <input type="text" name="autoridad_colonia" value="${d.autoridad_colonia || ''}">
+        </div>
+        <div class="field-group">
+          <label>Municipio / Alcaldía</label>
+          <input type="text" name="autoridad_municipio" value="${d.autoridad_municipio || ''}">
+        </div>
+        <div class="field-group">
+          <label>Estado</label>
+          <select name="autoridad_estado">
+            <option value="">— Seleccionar estado —</option>
+            ${ESTADOS_MX.map(e => `<option value="${e}" ${d.autoridad_estado===e?'selected':''}>${e}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Código Postal</label>
+          <input type="text" name="autoridad_cp" value="${d.autoridad_cp || ''}">
+        </div>
+        <div class="field-group full-width">
+          <label>Referencias</label>
+          <textarea name="autoridad_referencia">${d.autoridad_referencia || ''}</textarea>
+        </div>
+        <div class="field-group">
+          <label>Contacto</label>
+          <input type="text" name="contacto_nombre" value="${d.contacto_nombre || ''}" placeholder="Nombre">
+        </div>
+        <div class="field-group">
+          <label>Email</label>
+          <input type="email" name="contacto_email" value="${d.contacto_email || ''}">
+        </div>
+        <div class="field-group">
+          <label>Teléfono</label>
+          <input type="tel" name="contacto_telefono" value="${d.contacto_telefono || ''}">
+        </div>
+
+        <div class="section-divider full-width"><h4>Término Legal</h4></div>
+
+        <div class="toggle-row full-width">
+          <label for="edit-toggle-termino">¿Cuenta con Término Legal?</label>
+          <label class="toggle">
+            <input type="checkbox" id="edit-toggle-termino" name="tiene_termino_legal" ${d.tiene_termino_legal ? 'checked' : ''} onchange="editToggleTermino(this)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div id="edit-termino-fields" style="display:${d.tiene_termino_legal ? 'contents' : 'none'}; grid-column:1/-1;">
+          <div class="form-grid" style="border:1.5px solid var(--orange);border-radius:var(--radius-sm);padding:16px;background:#fff8f0;">
+            <div class="field-group">
+              <label>Fecha límite</label>
+              <input type="date" name="termino_fecha" value="${d.termino_fecha || ''}">
+            </div>
+            <div class="field-group">
+              <label>Hora límite</label>
+              <input type="time" name="termino_hora" value="${d.termino_hora || ''}">
+            </div>
+            <div class="field-group full-width">
+              <label>Observaciones</label>
+              <textarea name="termino_observaciones">${d.termino_observaciones || ''}</textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-divider full-width"><h4>Archivos Adjuntos</h4></div>
+
+        <div class="field-group full-width">
+          <div id="edit-doc-list" class="dz-file-list"></div>
+          <div class="dropzone" id="edit-dropzone" style="margin-top:10px;"
+            ondragover="dzEditDragOver(event)" ondragleave="dzEditDragLeave(event)"
+            ondrop="dzEditDrop(event)"
+            onclick="document.getElementById('edit-dz-input').click()">
+            <div class="dropzone-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>
+            </div>
+            <p class="dropzone-text">Arrastra archivos o</p>
+            <button type="button" class="btn-explore" onclick="event.stopPropagation();document.getElementById('edit-dz-input').click()">Explora tus archivos</button>
+            <p class="dropzone-hint">Máximo 20MB · PDF, DOC, DOCX, ZIP</p>
+          </div>
+          <input type="file" id="edit-dz-input" accept=".pdf,.doc,.docx,.zip" multiple style="display:none"
+            onchange="dzEditSelect(this.files); this.value=''">
+          <div id="edit-new-file-list" class="dz-file-list" style="margin-top:6px;"></div>
+        </div>
+      </div>
+
+      <div id="edit-error" class="alert alert-error" style="display:none;margin-top:16px;"></div>
+      <div class="btn-group" style="margin-top:20px;justify-content:flex-end;">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+      </div>
+    </form>
+  `);
+
+  // Render existing docs
+  function renderEditDocList() {
+    const el = document.getElementById('edit-doc-list');
+    if (!d.documentos || d.documentos.length === 0) { el.innerHTML = ''; return; }
+    el.innerHTML = d.documentos.map(doc => {
+      const pending = editDocsToDelete.has(doc.id);
+      return `<div class="dz-file-item" style="${pending ? 'opacity:.4;text-decoration:line-through;' : ''}">
+        <span class="dz-file-icon">${dzIcon(doc.nombre_original)}</span>
+        <span class="dz-file-name" title="${doc.nombre_original}">${doc.nombre_original}</span>
+        <span class="dz-file-size">${dzSize(doc.tamanio || 0)}</span>
+        <button type="button" class="dz-file-remove" title="${pending ? 'Deshacer' : 'Eliminar'}"
+          onclick="${pending ? `editDocRestore(${doc.id})` : `editDocDelete(${doc.id})`}">
+          ${pending
+            ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.54"/></svg>`
+            : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`}
+        </button>
+      </div>`;
+    }).join('');
+  }
+
+  function renderEditNewFiles() {
+    const el = document.getElementById('edit-new-file-list');
+    if (!editNewFiles.length) { el.innerHTML = ''; return; }
+    el.innerHTML = editNewFiles.map((f, i) => `
+      <div class="dz-file-item">
+        <span class="dz-file-icon">${dzIcon(f.name)}</span>
+        <span class="dz-file-name">${f.name}</span>
+        <span class="dz-file-size">${dzSize(f.size)}</span>
+        <button type="button" class="dz-file-remove" onclick="editNewFileRemove(${i})">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>`).join('');
+  }
+
+  window.editToggleTermino = (cb) => {
+    document.getElementById('edit-termino-fields').style.display = cb.checked ? 'contents' : 'none';
+  };
+
+  window.editDocDelete  = (docId) => { editDocsToDelete.add(docId); renderEditDocList(); };
+  window.editDocRestore = (docId) => { editDocsToDelete.delete(docId); renderEditDocList(); };
+  window.editNewFileRemove = (i) => { editNewFiles.splice(i, 1); renderEditNewFiles(); };
+  window.dzEditDragOver  = (e) => { e.preventDefault(); document.getElementById('edit-dropzone').classList.add('dz-active'); };
+  window.dzEditDragLeave = () => { document.getElementById('edit-dropzone').classList.remove('dz-active'); };
+  window.dzEditDrop = (e) => { e.preventDefault(); document.getElementById('edit-dropzone').classList.remove('dz-active'); dzEditAddFiles(e.dataTransfer.files); };
+  window.dzEditSelect = (files) => dzEditAddFiles(files);
+
+  function dzEditAddFiles(fileList) {
+    Array.from(fileList).forEach(f => {
+      const ext = '.' + f.name.split('.').pop().toLowerCase();
+      if (!ALLOWED_EXTS.includes(ext)) { toast(`Formato no permitido: ${f.name}`, 'error'); return; }
+      if (f.size > 20 * 1024 * 1024) { toast(`${f.name} excede 20 MB`, 'error'); return; }
+      if (editNewFiles.some(x => x.name === f.name && x.size === f.size)) return;
+      editNewFiles.push(f);
+    });
+    renderEditNewFiles();
+  }
+
+  renderEditDocList();
+
+  document.getElementById('form-editar').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('[type=submit]');
+    btn.disabled = true;
+    const errEl = document.getElementById('edit-error');
+    errEl.style.display = 'none';
+
+    const fd = new FormData(e.target);
+    const payload = {};
+    for (const [k, v] of fd.entries()) payload[k] = v;
+
+    try {
+      // 1. Save field changes
+      await API.put(`/diligencias/${id}`, payload);
+
+      // 2. Delete marked documents
+      for (const docId of editDocsToDelete) {
+        await API.delete(`/diligencias/${id}/documentos/${docId}`);
+      }
+
+      // 3. Upload new files
+      if (editNewFiles.length > 0) {
+        const fileForm = new FormData();
+        editNewFiles.forEach(f => fileForm.append('documentos', f));
+        await API.postForm(`/diligencias/${id}/documentos`, fileForm);
+      }
+
+      closeModal();
+      toast('Diligencia actualizada', 'success');
+      renderDetalle(id);
+    } catch(err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+    }
+  };
 }

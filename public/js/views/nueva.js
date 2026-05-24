@@ -80,38 +80,7 @@ function renderNueva() {
               <label>Estado</label>
               <select name="autoridad_estado">
                 <option value="">— Seleccionar estado —</option>
-                <option>Aguascalientes</option>
-                <option>Baja California</option>
-                <option>Baja California Sur</option>
-                <option>Campeche</option>
-                <option>Chiapas</option>
-                <option>Chihuahua</option>
-                <option>Ciudad de México</option>
-                <option>Coahuila de Zaragoza</option>
-                <option>Colima</option>
-                <option>Durango</option>
-                <option>Estado de México</option>
-                <option>Guanajuato</option>
-                <option>Guerrero</option>
-                <option>Hidalgo</option>
-                <option>Jalisco</option>
-                <option>Michoacán de Ocampo</option>
-                <option>Morelos</option>
-                <option>Nayarit</option>
-                <option>Nuevo León</option>
-                <option>Oaxaca</option>
-                <option>Puebla</option>
-                <option>Querétaro</option>
-                <option>Quintana Roo</option>
-                <option>San Luis Potosí</option>
-                <option>Sinaloa</option>
-                <option>Sonora</option>
-                <option>Tabasco</option>
-                <option>Tamaulipas</option>
-                <option>Tlaxcala</option>
-                <option>Veracruz de Ignacio de la Llave</option>
-                <option>Yucatán</option>
-                <option>Zacatecas</option>
+                ${ESTADOS_MX.map(e => `<option value="${e}">${e}</option>`).join('')}
               </select>
             </div>
 
@@ -306,15 +275,30 @@ async function submitNueva(e) {
   const errEl = document.getElementById('form-error');
   errEl.style.display = 'none';
 
-  const formData = new FormData(e.target);
-  // Override checkbox values so empty string = false (falsy) in backend
-  formData.set('tiene_anexos',       document.getElementById('toggle-anexos').checked  ? '1' : '');
-  formData.set('tiene_termino_legal', document.getElementById('toggle-termino').checked ? '1' : '');
-  // Attach files from dropzone
-  dropzoneFiles.forEach(f => formData.append('documentos', f));
+  const formEl = e.target;
+  const fd = new FormData(formEl);
+
+  // Build plain JSON body — checkboxes sent as booleans
+  const payload = {};
+  for (const [key, val] of fd.entries()) {
+    if (key === 'documentos') continue; // files handled separately
+    payload[key] = val;
+  }
+  payload.tiene_anexos       = document.getElementById('toggle-anexos').checked;
+  payload.tiene_termino_legal = document.getElementById('toggle-termino').checked;
 
   try {
-    const result = await API.postForm('/diligencias', formData);
+    // Step 1: create diligencia via JSON
+    const result = await API.post('/diligencias', payload);
+
+    // Step 2: upload files if any
+    if (dropzoneFiles.length > 0) {
+      btn.innerHTML = '<div class="spinner-sm"></div> Subiendo archivos...';
+      const fileForm = new FormData();
+      dropzoneFiles.forEach(f => fileForm.append('documentos', f));
+      await API.postForm(`/diligencias/${result.id}/documentos`, fileForm);
+    }
+
     dropzoneFiles = [];
     toast(`Diligencia ${result.folio} registrada exitosamente`, 'success');
     navigate('detalle', result.id);

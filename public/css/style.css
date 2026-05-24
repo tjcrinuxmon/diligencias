@@ -247,6 +247,7 @@ html, body {
 .btn-full { width: 100%; }
 .btn-sm   { padding: 6px 14px; font-size: 12px; }
 .btn-icon { padding: 6px; width: 32px; height: 32px; border-radius: var(--radius-sm); }
+.icon-btn { padding: 5px 8px; line-height: 1; }
 .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
 
 /* ========================================

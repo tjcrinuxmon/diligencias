@@ -13,7 +13,7 @@ function auth(req, res, next) {
 
 // Multer — shared storage
 const storage = multer.diskStorage({
-  destination: './public/uploads/',
+  destination: path.join(__dirname, '..', 'public', 'uploads'),
   filename: (req, file, cb) => {
     const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, unique + path.extname(file.originalname));
@@ -130,8 +130,8 @@ router.get('/:id', auth, (req, res) => {
   res.json({ ...d, seguimiento, documentos });
 });
 
-// POST create
-router.post('/', auth, uploadDocs.array('documentos', 10), (req, res) => {
+// POST create (JSON only — files uploaded separately to /:id/documentos)
+router.post('/', auth, (req, res) => {
   const {
     area_requirente, tiene_anexos, numero_oficio, id_sai,
     autoridad_nombre, autoridad_domicilio, autoridad_colonia,
@@ -148,45 +148,138 @@ router.post('/', auth, uploadDocs.array('documentos', 10), (req, res) => {
   }
 
   const folio = generateFolio();
-  const conAnexos = tiene_anexos === '1' || tiene_anexos === 'true' || tiene_anexos === true;
-  const conTermino = tiene_termino_legal === '1' || tiene_termino_legal === 'true' || tiene_termino_legal === true;
+  const conAnexos = tiene_anexos === true || tiene_anexos === 'true' || tiene_anexos === 1 || tiene_anexos === '1';
+  const conTermino = tiene_termino_legal === true || tiene_termino_legal === 'true' || tiene_termino_legal === 1 || tiene_termino_legal === '1';
 
-  const createDiligencia = db.transaction(() => {
-    const result = db.prepare(`
-      INSERT INTO diligencias (
-        folio, area_requirente, tiene_anexos, numero_oficio, id_sai,
-        autoridad_nombre, autoridad_domicilio, autoridad_colonia,
-        autoridad_municipio, autoridad_estado, autoridad_cp, autoridad_referencia,
-        tiene_termino_legal, termino_fecha, termino_hora, termino_observaciones,
-        contacto_nombre, contacto_email, contacto_telefono,
-        creado_por, asignado_a
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    `).run(
-      folio, area_requirente, conAnexos ? 1 : 0, numero_oficio, id_sai || null,
-      autoridad_nombre, autoridad_domicilio, autoridad_colonia || null,
-      autoridad_municipio || null, autoridad_estado || null, autoridad_cp || null, autoridad_referencia || null,
-      conTermino ? 1 : 0,
-      conTermino ? (termino_fecha || null) : null,
-      conTermino ? (termino_hora || null) : null,
-      conTermino ? (termino_observaciones || null) : null,
-      contacto_nombre || null, contacto_email || null, contacto_telefono || null,
-      req.session.userId, asignado_a || null
-    );
+  const result = db.prepare(`
+    INSERT INTO diligencias (
+      folio, area_requirente, tiene_anexos, numero_oficio, id_sai,
+      autoridad_nombre, autoridad_domicilio, autoridad_colonia,
+      autoridad_municipio, autoridad_estado, autoridad_cp, autoridad_referencia,
+      tiene_termino_legal, termino_fecha, termino_hora, termino_observaciones,
+      contacto_nombre, contacto_email, contacto_telefono,
+      creado_por, asignado_a
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `).run(
+    folio, area_requirente, conAnexos ? 1 : 0, numero_oficio, id_sai || null,
+    autoridad_nombre, autoridad_domicilio, autoridad_colonia || null,
+    autoridad_municipio || null, autoridad_estado || null, autoridad_cp || null, autoridad_referencia || null,
+    conTermino ? 1 : 0,
+    conTermino ? (termino_fecha || null) : null,
+    conTermino ? (termino_hora || null) : null,
+    conTermino ? (termino_observaciones || null) : null,
+    contacto_nombre || null, contacto_email || null, contacto_telefono || null,
+    req.session.userId, asignado_a || null
+  );
 
-    const dId = result.lastInsertRowid;
+  const nueva = db.prepare('SELECT * FROM diligencias WHERE id = ?').get(result.lastInsertRowid);
+  res.status(201).json(nueva);
+});
 
-    if (req.files && req.files.length > 0) {
-      const docStmt = db.prepare(`INSERT INTO documentos (diligencia_id, nombre_original, archivo, tipo, tamanio, subido_por) VALUES (?,?,?,?,?,?)`);
-      req.files.forEach(f => {
-        docStmt.run(dId, f.originalname, `/uploads/${f.filename}`, f.mimetype, f.size, req.session.userId);
-      });
-    }
+// POST upload documents to an existing diligencia
+router.post('/:id/documentos', auth, uploadDocs.array('documentos', 10), (req, res) => {
+  const diligencia_id = req.params.id;
+  const d = db.prepare('SELECT id FROM diligencias WHERE id = ?').get(diligencia_id);
+  if (!d) return res.status(404).json({ error: 'Diligencia no encontrada' });
+  if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No se enviaron archivos' });
 
-    return db.prepare('SELECT * FROM diligencias WHERE id = ?').get(dId);
+  const docStmt = db.prepare(`INSERT INTO documentos (diligencia_id, nombre_original, archivo, tipo, tamanio, subido_por) VALUES (?,?,?,?,?,?)`);
+  req.files.forEach(f => {
+    docStmt.run(diligencia_id, f.originalname, `/uploads/${f.filename}`, f.mimetype, f.size, req.session.userId);
   });
 
-  const nueva = createDiligencia();
-  res.status(201).json(nueva);
+  res.json({ ok: true, count: req.files.length });
+});
+
+// DELETE a single document (creador de la diligencia o admin)
+router.delete('/:id/documentos/:docId', auth, (req, res) => {
+  const doc = db.prepare('SELECT doc.*, d.creado_por FROM documentos doc JOIN diligencias d ON d.id = doc.diligencia_id WHERE doc.id = ? AND doc.diligencia_id = ?').get(req.params.docId, req.params.id);
+  if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
+
+  const user = db.prepare('SELECT rol FROM usuarios WHERE id = ?').get(req.session.userId);
+  if (doc.creado_por !== req.session.userId && user?.rol !== 'admin') {
+    return res.status(403).json({ error: 'Sin permiso' });
+  }
+
+  // Delete physical file
+  const filePath = path.join(__dirname, '..', 'public', doc.archivo);
+  try { require('fs').unlinkSync(filePath); } catch (_) {}
+
+  db.prepare('DELETE FROM documentos WHERE id = ?').run(req.params.docId);
+  res.json({ ok: true });
+});
+
+// PUT edit diligencia (creador o admin)
+router.put('/:id', auth, (req, res) => {
+  const d = db.prepare('SELECT creado_por FROM diligencias WHERE id = ?').get(req.params.id);
+  if (!d) return res.status(404).json({ error: 'No encontrada' });
+
+  const user = db.prepare('SELECT rol FROM usuarios WHERE id = ?').get(req.session.userId);
+  if (d.creado_por !== req.session.userId && user?.rol !== 'admin') {
+    return res.status(403).json({ error: 'Sin permiso para editar esta diligencia' });
+  }
+
+  const {
+    area_requirente, numero_oficio, id_sai,
+    autoridad_nombre, autoridad_domicilio, autoridad_colonia,
+    autoridad_municipio, autoridad_estado, autoridad_cp, autoridad_referencia,
+    tiene_termino_legal, termino_fecha, termino_hora, termino_observaciones,
+    contacto_nombre, contacto_email, contacto_telefono
+  } = req.body;
+
+  if (!area_requirente || !numero_oficio || !autoridad_nombre || !autoridad_domicilio) {
+    return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  }
+
+  const conTermino = tiene_termino_legal === true || tiene_termino_legal === 'true' || tiene_termino_legal === 1 || tiene_termino_legal === '1' || tiene_termino_legal === 'on';
+
+  db.prepare(`
+    UPDATE diligencias SET
+      area_requirente=?, numero_oficio=?, id_sai=?,
+      autoridad_nombre=?, autoridad_domicilio=?, autoridad_colonia=?,
+      autoridad_municipio=?, autoridad_estado=?, autoridad_cp=?, autoridad_referencia=?,
+      tiene_termino_legal=?, termino_fecha=?, termino_hora=?, termino_observaciones=?,
+      contacto_nombre=?, contacto_email=?, contacto_telefono=?,
+      updated_at=CURRENT_TIMESTAMP
+    WHERE id=?
+  `).run(
+    area_requirente, numero_oficio, id_sai || null,
+    autoridad_nombre, autoridad_domicilio, autoridad_colonia || null,
+    autoridad_municipio || null, autoridad_estado || null, autoridad_cp || null, autoridad_referencia || null,
+    conTermino ? 1 : 0,
+    conTermino ? (termino_fecha || null) : null,
+    conTermino ? (termino_hora || null) : null,
+    conTermino ? (termino_observaciones || null) : null,
+    contacto_nombre || null, contacto_email || null, contacto_telefono || null,
+    req.params.id
+  );
+
+  res.json({ ok: true });
+});
+
+// DELETE diligencia (solo el creador)
+router.delete('/:id', auth, (req, res) => {
+  const d = db.prepare('SELECT creado_por FROM diligencias WHERE id = ?').get(req.params.id);
+  if (!d) return res.status(404).json({ error: 'No encontrada' });
+  if (d.creado_por !== req.session.userId) {
+    return res.status(403).json({ error: 'Solo el creador puede eliminar esta diligencia' });
+  }
+
+  // Delete physical files
+  const docs = db.prepare('SELECT archivo FROM documentos WHERE diligencia_id = ?').all(req.params.id);
+  const fs = require('fs');
+  docs.forEach(doc => {
+    try { fs.unlinkSync(path.join(__dirname, '..', 'public', doc.archivo)); } catch (_) {}
+  });
+
+  db.transaction(() => {
+    db.prepare('DELETE FROM documentos  WHERE diligencia_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM seguimiento WHERE diligencia_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM notificaciones WHERE diligencia_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM diligencias  WHERE id = ?').run(req.params.id);
+  })();
+
+  res.json({ ok: true });
 });
 
 // PUT update estado

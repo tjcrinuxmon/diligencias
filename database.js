@@ -1,12 +1,12 @@
-const Database = require('better-sqlite3');
+const { DatabaseSync: Database } = require('node:sqlite');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 
 const DB_PATH = path.join(__dirname, 'diligencias.sqlite');
 const db = new Database(DB_PATH);
 
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+db.exec("PRAGMA journal_mode = WAL");
+db.exec("PRAGMA foreign_keys = ON");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS usuarios (

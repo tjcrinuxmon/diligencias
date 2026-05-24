@@ -21,6 +21,7 @@ const API = {
   postForm: (url, formData) => API.request('POST', url, formData, true),
   patch: (url, data) => API.request('PATCH', url, data),
   put: (url, data) => API.request('PUT', url, data),
+  delete: (url) => API.request('DELETE', url),
 };
 
 // Toast notifications
@@ -77,6 +78,14 @@ const estadoBadge = (e) => `<span class="badge badge-${e}">${{
   pendiente:'Pendiente', en_proceso:'En Proceso', entregado:'Entregado',
   no_entregado:'No Entregado', cancelado:'Cancelado'
 }[e] || e}</span>`;
+
+const ESTADOS_MX = [
+  'Aguascalientes','Baja California','Baja California Sur','Campeche','Chiapas','Chihuahua',
+  'Ciudad de México','Coahuila de Zaragoza','Colima','Durango','Estado de México','Guanajuato',
+  'Guerrero','Hidalgo','Jalisco','Michoacán de Ocampo','Morelos','Nayarit','Nuevo León',
+  'Oaxaca','Puebla','Querétaro','Quintana Roo','San Luis Potosí','Sinaloa','Sonora',
+  'Tabasco','Tamaulipas','Tlaxcala','Veracruz de Ignacio de la Llave','Yucatán','Zacatecas'
+];
 
 const AREAS = [
   'Dirección de Instrucción Recursal',

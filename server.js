@@ -8,13 +8,15 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 
 // Ensure uploads directory exists
-if (!fs.existsSync('./public/uploads')) {
-  fs.mkdirSync('./public/uploads', { recursive: true });
+const UPLOADS_DIR = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/api/uploads', express.static(UPLOADS_DIR));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
