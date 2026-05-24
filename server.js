@@ -2,7 +2,7 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const fs = require('fs');
-const { initDatabase } = require('./database');
+require('./database'); // synchronous init — runs migrations and seeds on startup
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -35,13 +35,7 @@ app.get('*', (req, res) => {
   }
 });
 
-// Inicializar DB y arrancar servidor
-initDatabase().then(() => {
-  app.listen(PORT, () => {
-    console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`📋 Sistema de Diligencias iniciado`);
-  });
-}).catch(err => {
-  console.error('❌ Error al inicializar la base de datos:', err);
-  process.exit(1);
+app.listen(PORT, () => {
+  console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`📋 Sistema de Diligencias iniciado`);
 });
