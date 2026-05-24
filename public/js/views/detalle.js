@@ -44,6 +44,24 @@ async function renderDetalle(id) {
             </div>
           </div>
 
+          <!-- Documentos adjuntos -->
+          ${d.documentos && d.documentos.length > 0 ? `
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><h3>📎 Documentos Adjuntos (${d.documentos.length})</h3></div>
+            <div class="card-body">
+              <div class="doc-list">
+                ${d.documentos.map(doc => `
+                  <a href="${doc.archivo}" target="_blank" class="doc-item">
+                    <span class="doc-item-icon">${docIcon(doc.nombre_original)}</span>
+                    <span class="doc-item-name" title="${doc.nombre_original}">${doc.nombre_original}</span>
+                    <span class="doc-item-meta">${doc.tamanio ? dzSizeDetalle(doc.tamanio) : ''}</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-dim);flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  </a>
+                `).join('')}
+              </div>
+            </div>
+          </div>` : ''}
+
           <!-- Autoridad -->
           <div class="card" style="margin-bottom:20px;">
             <div class="card-header"><h3>Autoridad a Notificar</h3></div>
@@ -279,6 +297,19 @@ function buildHistorial(seguimiento) {
       ` : ''}
       ${tramoHtml(ultimo)}
     </div>`;
+}
+
+function docIcon(name) {
+  const ext = (name || '').split('.').pop().toLowerCase();
+  if (ext === 'pdf') return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/></svg>';
+  if (ext === 'zip') return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+  return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+}
+function dzSizeDetalle(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
 function toggleTramosAnteriores(btn) {

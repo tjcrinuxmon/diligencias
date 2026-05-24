@@ -11,7 +11,7 @@ function auth(req, res, next) {
   next();
 }
 
-// Multer config
+// Multer — shared storage
 const storage = multer.diskStorage({
   destination: './public/uploads/',
   filename: (req, file, cb) => {
@@ -19,12 +19,34 @@ const storage = multer.diskStorage({
     cb(null, unique + path.extname(file.originalname));
   }
 });
+
+// Para acuses de seguimiento (PDF únicamente)
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf') cb(null, true);
     else cb(new Error('Solo se permiten archivos PDF'));
+  }
+});
+
+// Para documentos adjuntos de la diligencia (PDF, DOC, DOCX, ZIP)
+const ALLOWED_DOC_MIMES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/octet-stream',
+]);
+const ALLOWED_DOC_EXTS = new Set(['.pdf', '.doc', '.docx', '.zip']);
+const uploadDocs = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_DOC_MIMES.has(file.mimetype) || ALLOWED_DOC_EXTS.has(ext)) cb(null, true);
+    else cb(new Error('Solo se permiten archivos PDF, DOC, DOCX o ZIP'));
   }
 });
 
@@ -97,11 +119,19 @@ router.get('/:id', auth, (req, res) => {
     ORDER BY s.created_at ASC
   `).all(req.params.id);
 
-  res.json({ ...d, seguimiento });
+  const documentos = db.prepare(`
+    SELECT doc.*, u.nombre as subido_por_nombre
+    FROM documentos doc
+    LEFT JOIN usuarios u ON doc.subido_por = u.id
+    WHERE doc.diligencia_id = ?
+    ORDER BY doc.created_at ASC
+  `).all(req.params.id);
+
+  res.json({ ...d, seguimiento, documentos });
 });
 
 // POST create
-router.post('/', auth, (req, res) => {
+router.post('/', auth, uploadDocs.array('documentos', 10), (req, res) => {
   const {
     area_requirente, tiene_anexos, numero_oficio, id_sai,
     autoridad_nombre, autoridad_domicilio, autoridad_colonia,
@@ -115,31 +145,44 @@ router.post('/', auth, (req, res) => {
   }
 
   const folio = generateFolio();
+  const conAnexos = tiene_anexos === '1' || tiene_anexos === 'true' || tiene_anexos === true;
+  const conTermino = tiene_termino_legal === '1' || tiene_termino_legal === 'true' || tiene_termino_legal === true;
 
-  const stmt = db.prepare(`
-    INSERT INTO diligencias (
-      folio, area_requirente, tiene_anexos, numero_oficio, id_sai,
-      autoridad_nombre, autoridad_domicilio, autoridad_colonia,
-      autoridad_municipio, autoridad_estado, autoridad_cp, autoridad_referencia,
-      tiene_termino_legal, termino_fecha, termino_hora, termino_observaciones,
-      contacto_nombre, contacto_email, contacto_telefono,
-      creado_por, asignado_a
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-  `);
+  const createDiligencia = db.transaction(() => {
+    const result = db.prepare(`
+      INSERT INTO diligencias (
+        folio, area_requirente, tiene_anexos, numero_oficio, id_sai,
+        autoridad_nombre, autoridad_domicilio, autoridad_colonia,
+        autoridad_municipio, autoridad_estado, autoridad_cp, autoridad_referencia,
+        tiene_termino_legal, termino_fecha, termino_hora, termino_observaciones,
+        contacto_nombre, contacto_email, contacto_telefono,
+        creado_por, asignado_a
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      folio, area_requirente, conAnexos ? 1 : 0, numero_oficio, id_sai || null,
+      autoridad_nombre, autoridad_domicilio, autoridad_colonia || null,
+      autoridad_municipio || null, autoridad_estado || null, autoridad_cp || null, autoridad_referencia || null,
+      conTermino ? 1 : 0,
+      conTermino ? (termino_fecha || null) : null,
+      conTermino ? (termino_hora || null) : null,
+      conTermino ? (termino_observaciones || null) : null,
+      contacto_nombre || null, contacto_email || null, contacto_telefono || null,
+      req.session.userId, asignado_a || null
+    );
 
-  const result = stmt.run(
-    folio, area_requirente, tiene_anexos ? 1 : 0, numero_oficio, id_sai || null,
-    autoridad_nombre, autoridad_domicilio, autoridad_colonia || null,
-    autoridad_municipio || null, autoridad_estado || null, autoridad_cp || null, autoridad_referencia || null,
-    tiene_termino_legal ? 1 : 0,
-    tiene_termino_legal ? termino_fecha : null,
-    tiene_termino_legal ? termino_hora : null,
-    tiene_termino_legal ? termino_observaciones : null,
-    contacto_nombre || null, contacto_email || null, contacto_telefono || null,
-    req.session.userId, asignado_a || null
-  );
+    const dId = result.lastInsertRowid;
 
-  const nueva = db.prepare('SELECT * FROM diligencias WHERE id = ?').get(result.lastInsertRowid);
+    if (req.files && req.files.length > 0) {
+      const docStmt = db.prepare(`INSERT INTO documentos (diligencia_id, nombre_original, archivo, tipo, tamanio, subido_por) VALUES (?,?,?,?,?,?)`);
+      req.files.forEach(f => {
+        docStmt.run(dId, f.originalname, `/uploads/${f.filename}`, f.mimetype, f.size, req.session.userId);
+      });
+    }
+
+    return db.prepare('SELECT * FROM diligencias WHERE id = ?').get(dId);
+  });
+
+  const nueva = createDiligencia();
   res.status(201).json(nueva);
 });
 

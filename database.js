@@ -77,6 +77,19 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS documentos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    diligencia_id INTEGER NOT NULL REFERENCES diligencias(id),
+    nombre_original TEXT NOT NULL,
+    archivo TEXT NOT NULL,
+    tipo TEXT,
+    tamanio INTEGER,
+    subido_por INTEGER REFERENCES usuarios(id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 // Migrations
 try { db.exec(`ALTER TABLE seguimiento ADD COLUMN tipo TEXT NOT NULL DEFAULT 'final'`); } catch (_) {}
 try { db.exec(`ALTER TABLE seguimiento ADD COLUMN lugar TEXT`); } catch (_) {}

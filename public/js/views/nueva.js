@@ -1,4 +1,7 @@
+let dropzoneFiles = [];
+
 function renderNueva() {
+  dropzoneFiles = [];
   const el = document.getElementById('view-nueva');
   el.innerHTML = `
     <div class="page-header">
@@ -12,7 +15,7 @@ function renderNueva() {
       <div class="card-body">
         <form id="form-nueva">
           <div class="form-grid">
-            
+
             <div class="section-divider">
               <h4>Información General</h4>
             </div>
@@ -137,6 +140,34 @@ function renderNueva() {
               <input type="tel" name="contacto_telefono" placeholder="55 0000 0000">
             </div>
 
+            <div class="section-divider">
+              <h4>Archivos Adjuntos</h4>
+            </div>
+
+            <div class="field-group full-width">
+              <div class="dropzone" id="dropzone"
+                ondragover="dzDragOver(event)"
+                ondragleave="dzDragLeave(event)"
+                ondrop="dzDrop(event)"
+                onclick="document.getElementById('dz-input').click()">
+                <div class="dropzone-icon">
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+                    <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>
+                    <path d="M12 12v9"/>
+                    <path d="m16 16-4-4-4 4"/>
+                  </svg>
+                </div>
+                <p class="dropzone-text">Arrastra aquí los archivos para subir o</p>
+                <button type="button" class="btn-explore" onclick="event.stopPropagation();document.getElementById('dz-input').click()">
+                  Explora tus archivos
+                </button>
+                <p class="dropzone-hint">Máximo 20MB · PDF, DOC, DOCX, ZIP</p>
+              </div>
+              <input type="file" id="dz-input" accept=".pdf,.doc,.docx,.zip"
+                multiple style="display:none" onchange="dzSelect(this.files); this.value=''">
+              <div id="dz-file-list" class="dz-file-list"></div>
+            </div>
+
           </div>
 
           <div id="form-error" class="alert alert-error" style="display:none; margin-top:20px;"></div>
@@ -161,19 +192,94 @@ function toggleTermino(checkbox) {
   fields.style.display = checkbox.checked ? 'contents' : 'none';
 }
 
+/* ── Dropzone ── */
+function dzDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.add('dz-active');
+}
+function dzDragLeave(e) {
+  document.getElementById('dropzone').classList.remove('dz-active');
+}
+function dzDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('dz-active');
+  dzAddFiles(e.dataTransfer.files);
+}
+function dzSelect(files) {
+  dzAddFiles(files);
+}
+
+const ALLOWED_EXTS = ['.pdf', '.doc', '.docx', '.zip'];
+
+function dzAddFiles(fileList) {
+  Array.from(fileList).forEach(f => {
+    const ext = '.' + f.name.split('.').pop().toLowerCase();
+    if (!ALLOWED_EXTS.includes(ext)) {
+      toast(`Formato no permitido: ${f.name}`, 'error');
+      return;
+    }
+    if (f.size > 20 * 1024 * 1024) {
+      toast(`${f.name} excede el límite de 20 MB`, 'error');
+      return;
+    }
+    if (dropzoneFiles.some(x => x.name === f.name && x.size === f.size)) return;
+    dropzoneFiles.push(f);
+  });
+  dzRenderList();
+}
+
+function dzRemove(idx) {
+  dropzoneFiles.splice(idx, 1);
+  dzRenderList();
+}
+
+function dzRenderList() {
+  const el = document.getElementById('dz-file-list');
+  if (!dropzoneFiles.length) { el.innerHTML = ''; return; }
+  el.innerHTML = dropzoneFiles.map((f, i) => `
+    <div class="dz-file-item">
+      <span class="dz-file-icon">${dzIcon(f.name)}</span>
+      <span class="dz-file-name" title="${f.name}">${f.name}</span>
+      <span class="dz-file-size">${dzSize(f.size)}</span>
+      <button type="button" class="dz-file-remove" onclick="dzRemove(${i})" title="Quitar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+function dzIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/></svg>';
+  if (ext === 'zip') return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+  return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+}
+
+function dzSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+/* ── Submit ── */
 async function submitNueva(e) {
   e.preventDefault();
   const btn = document.getElementById('btn-submit');
-  btn.disabled = true; btn.textContent = 'Guardando...';
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner-sm"></div> Guardando...';
   const errEl = document.getElementById('form-error');
   errEl.style.display = 'none';
 
-  const data = Object.fromEntries(new FormData(e.target).entries());
-  data.tiene_anexos = document.getElementById('toggle-anexos').checked;
-  data.tiene_termino_legal = document.getElementById('toggle-termino').checked;
+  const formData = new FormData(e.target);
+  // Override checkbox values so empty string = false (falsy) in backend
+  formData.set('tiene_anexos',       document.getElementById('toggle-anexos').checked  ? '1' : '');
+  formData.set('tiene_termino_legal', document.getElementById('toggle-termino').checked ? '1' : '');
+  // Attach files from dropzone
+  dropzoneFiles.forEach(f => formData.append('documentos', f));
 
   try {
-    const result = await API.post('/diligencias', data);
+    const result = await API.postForm('/diligencias', formData);
+    dropzoneFiles = [];
     toast(`Diligencia ${result.folio} registrada exitosamente`, 'success');
     navigate('detalle', result.id);
   } catch(err) {
