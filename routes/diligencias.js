@@ -143,6 +143,9 @@ router.post('/', auth, uploadDocs.array('documentos', 10), (req, res) => {
   if (!area_requirente || !numero_oficio || !autoridad_nombre || !autoridad_domicilio) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
+  if (id_sai && !/^\d+$/.test(String(id_sai).trim())) {
+    return res.status(400).json({ error: 'El ID SAI debe ser un valor numérico' });
+  }
 
   const folio = generateFolio();
   const conAnexos = tiene_anexos === '1' || tiene_anexos === 'true' || tiene_anexos === true;

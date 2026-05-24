@@ -5,7 +5,14 @@ const API = {
     if (data && !isFormData) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(data); }
     if (data && isFormData) { opts.body = data; }
     const res = await fetch('/api/dil' + url, opts);
-    const json = await res.json();
+    const text = await res.text();
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      // El servidor devolvió algo que no es JSON (error de proxy, HTML, etc.)
+      throw new Error(res.ok ? 'Respuesta inesperada del servidor' : `Error ${res.status}: ${text.slice(0, 120)}`);
+    }
     if (!res.ok) throw new Error(json.error || 'Error del servidor');
     return json;
   },

@@ -47,7 +47,9 @@ function renderNueva() {
 
             <div class="field-group">
               <label>ID SAI</label>
-              <input type="text" name="id_sai" placeholder="Número de expediente SAI">
+              <input type="number" name="id_sai" placeholder="Número de expediente SAI"
+                min="0" step="1" inputmode="numeric"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'')">
             </div>
 
             <div class="section-divider">
