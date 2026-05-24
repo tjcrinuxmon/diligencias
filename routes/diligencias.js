@@ -288,7 +288,7 @@ router.patch('/:id/estado', auth, (req, res) => {
   const valid = ['pendiente','en_proceso','entregado','no_entregado','cancelado'];
   if (!valid.includes(estado)) return res.status(400).json({ error: 'Estado inválido' });
 
-  db.prepare('UPDATE diligencias SET estado = ?, updated_at = datetime('now','localtime') WHERE id = ?')
+  db.prepare(`UPDATE diligencias SET estado = ?, updated_at = datetime('now','localtime') WHERE id = ?`)
     .run(estado, req.params.id);
   res.json({ ok: true });
 });
@@ -308,7 +308,7 @@ router.post('/:id/seguimiento', auth, upload.single('archivo_acuse'), async (req
 
   if (esFinal) {
     // Entrega final: marcar como entregado
-    db.prepare('UPDATE diligencias SET estado = ?, updated_at = datetime('now','localtime') WHERE id = ?')
+    db.prepare(`UPDATE diligencias SET estado = ?, updated_at = datetime('now','localtime') WHERE id = ?`)
       .run('entregado', diligencia_id);
   } else {
     // Tramo parcial: avanzar de pendiente a en_proceso sin retroceder
