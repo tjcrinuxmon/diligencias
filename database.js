@@ -17,7 +17,7 @@ db.exec(`
     rol TEXT DEFAULT 'usuario' CHECK(rol IN ('admin', 'usuario', 'notificador')),
     area TEXT,
     activo INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT (datetime('now','localtime'))
   )
 `);
 
@@ -46,8 +46,8 @@ db.exec(`
     estado TEXT DEFAULT 'pendiente' CHECK(estado IN ('pendiente','en_proceso','entregado','no_entregado','cancelado')),
     creado_por INTEGER REFERENCES usuarios(id),
     asignado_a INTEGER REFERENCES usuarios(id),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT (datetime('now','localtime')),
+    updated_at DATETIME DEFAULT (datetime('now','localtime'))
   )
 `);
 
@@ -61,7 +61,7 @@ db.exec(`
     observaciones TEXT,
     archivo_acuse TEXT,
     registrado_por INTEGER REFERENCES usuarios(id),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT (datetime('now','localtime'))
   )
 `);
 
@@ -73,7 +73,7 @@ db.exec(`
     destinatario TEXT,
     enviado INTEGER DEFAULT 0,
     error TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT (datetime('now','localtime'))
   )
 `);
 
@@ -86,7 +86,7 @@ db.exec(`
     tipo TEXT,
     tamanio INTEGER,
     subido_por INTEGER REFERENCES usuarios(id),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT (datetime('now','localtime'))
   )
 `);
 

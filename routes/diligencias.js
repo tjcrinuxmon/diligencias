@@ -240,7 +240,7 @@ router.put('/:id', auth, (req, res) => {
       autoridad_municipio=?, autoridad_estado=?, autoridad_cp=?, autoridad_referencia=?,
       tiene_termino_legal=?, termino_fecha=?, termino_hora=?, termino_observaciones=?,
       contacto_nombre=?, contacto_email=?, contacto_telefono=?,
-      updated_at=CURRENT_TIMESTAMP
+      updated_at=datetime('now','localtime')
     WHERE id=?
   `).run(
     area_requirente, numero_oficio, id_sai || null,
@@ -288,7 +288,7 @@ router.patch('/:id/estado', auth, (req, res) => {
   const valid = ['pendiente','en_proceso','entregado','no_entregado','cancelado'];
   if (!valid.includes(estado)) return res.status(400).json({ error: 'Estado inválido' });
 
-  db.prepare('UPDATE diligencias SET estado = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+  db.prepare('UPDATE diligencias SET estado = ?, updated_at = datetime('now','localtime') WHERE id = ?')
     .run(estado, req.params.id);
   res.json({ ok: true });
 });
@@ -308,11 +308,11 @@ router.post('/:id/seguimiento', auth, upload.single('archivo_acuse'), async (req
 
   if (esFinal) {
     // Entrega final: marcar como entregado
-    db.prepare('UPDATE diligencias SET estado = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    db.prepare('UPDATE diligencias SET estado = ?, updated_at = datetime('now','localtime') WHERE id = ?')
       .run('entregado', diligencia_id);
   } else {
     // Tramo parcial: avanzar de pendiente a en_proceso sin retroceder
-    db.prepare(`UPDATE diligencias SET estado = CASE WHEN estado = 'pendiente' THEN 'en_proceso' ELSE estado END, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+    db.prepare(`UPDATE diligencias SET estado = CASE WHEN estado = 'pendiente' THEN 'en_proceso' ELSE estado END, updated_at = datetime('now','localtime') WHERE id = ?`)
       .run(diligencia_id);
   }
 
