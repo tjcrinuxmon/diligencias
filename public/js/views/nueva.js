@@ -148,6 +148,15 @@ function renderNueva() {
             </div>
 
             <div class="section-divider">
+              <h4>Instrucciones Adicionales</h4>
+            </div>
+
+            <div class="field-group full-width">
+              <label>Instrucciones para el notificador</label>
+              <textarea name="instrucciones_adicionales" placeholder="Indicaciones especiales, horarios de atención, persona a quien dirigirse, etc." style="min-height:80px;"></textarea>
+            </div>
+
+            <div class="section-divider">
               <h4>Archivos Adjuntos</h4>
             </div>
 

@@ -93,6 +93,7 @@ db.exec(`
 // Migrations
 try { db.exec(`ALTER TABLE seguimiento ADD COLUMN tipo TEXT NOT NULL DEFAULT 'final'`); } catch (_) {}
 try { db.exec(`ALTER TABLE seguimiento ADD COLUMN lugar TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN instrucciones_adicionales TEXT`); } catch (_) {}
 
 // Migration: add 'coordinador' role to CHECK constraint
 try {

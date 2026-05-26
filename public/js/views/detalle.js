@@ -44,6 +44,7 @@ async function renderDetalle(id) {
                 <div class="detail-item"><label>Área Requirente</label><span>${d.area_requirente}</span></div>
                 <div class="detail-item"><label>Registrado</label><span>${formatDatetime(d.created_at)}</span></div>
                 <div class="detail-item"><label>Registrado por</label><span>${d.creado_por_nombre || '—'}</span></div>
+                ${d.instrucciones_adicionales ? `<div class="detail-item" style="grid-column:1/-1;"><label>Instrucciones Adicionales</label><span style="white-space:pre-wrap;">${d.instrucciones_adicionales}</span></div>` : ''}
               </div>
             </div>
           </div>
@@ -442,6 +443,11 @@ async function openEditarModal(id) {
               <textarea name="termino_observaciones">${d.termino_observaciones || ''}</textarea>
             </div>
           </div>
+        </div>
+
+        <div class="section-divider full-width"><h4>Instrucciones Adicionales</h4></div>
+        <div class="field-group full-width">
+          <textarea name="instrucciones_adicionales" placeholder="Indicaciones especiales para el notificador..." style="min-height:80px;">${d.instrucciones_adicionales || ''}</textarea>
         </div>
 
         <div class="section-divider full-width"><h4>Archivos Adjuntos</h4></div>

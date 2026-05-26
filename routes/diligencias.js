@@ -164,7 +164,8 @@ router.post('/', auth, (req, res) => {
     autoridad_nombre, autoridad_domicilio, autoridad_colonia,
     autoridad_municipio, autoridad_estado, autoridad_cp, autoridad_referencia,
     tiene_termino_legal, termino_fecha, termino_hora, termino_observaciones,
-    contacto_nombre, contacto_email, contacto_telefono, asignado_a
+    contacto_nombre, contacto_email, contacto_telefono, asignado_a,
+    instrucciones_adicionales
   } = req.body;
 
   if (!area_requirente || !numero_oficio || !autoridad_nombre || !autoridad_domicilio) {
@@ -185,8 +186,8 @@ router.post('/', auth, (req, res) => {
       autoridad_municipio, autoridad_estado, autoridad_cp, autoridad_referencia,
       tiene_termino_legal, termino_fecha, termino_hora, termino_observaciones,
       contacto_nombre, contacto_email, contacto_telefono,
-      creado_por, asignado_a
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      instrucciones_adicionales, creado_por, asignado_a
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(
     folio, area_requirente, conAnexos ? 1 : 0, numero_oficio, id_sai || null,
     autoridad_nombre, autoridad_domicilio, autoridad_colonia || null,
@@ -196,7 +197,7 @@ router.post('/', auth, (req, res) => {
     conTermino ? (termino_hora || null) : null,
     conTermino ? (termino_observaciones || null) : null,
     contacto_nombre || null, contacto_email || null, contacto_telefono || null,
-    req.session.userId, asignado_a || null
+    instrucciones_adicionales || null, req.session.userId, asignado_a || null
   );
 
   const nueva = db.prepare('SELECT * FROM diligencias WHERE id = ?').get(result.lastInsertRowid);
@@ -252,7 +253,7 @@ router.put('/:id', auth, (req, res) => {
     autoridad_nombre, autoridad_domicilio, autoridad_colonia,
     autoridad_municipio, autoridad_estado, autoridad_cp, autoridad_referencia,
     tiene_termino_legal, termino_fecha, termino_hora, termino_observaciones,
-    contacto_nombre, contacto_email, contacto_telefono
+    contacto_nombre, contacto_email, contacto_telefono, instrucciones_adicionales
   } = req.body;
 
   if (!area_requirente || !numero_oficio || !autoridad_nombre || !autoridad_domicilio) {
@@ -268,6 +269,7 @@ router.put('/:id', auth, (req, res) => {
       autoridad_municipio=?, autoridad_estado=?, autoridad_cp=?, autoridad_referencia=?,
       tiene_termino_legal=?, termino_fecha=?, termino_hora=?, termino_observaciones=?,
       contacto_nombre=?, contacto_email=?, contacto_telefono=?,
+      instrucciones_adicionales=?,
       updated_at=datetime('now','localtime')
     WHERE id=?
   `).run(
@@ -279,6 +281,7 @@ router.put('/:id', auth, (req, res) => {
     conTermino ? (termino_hora || null) : null,
     conTermino ? (termino_observaciones || null) : null,
     contacto_nombre || null, contacto_email || null, contacto_telefono || null,
+    instrucciones_adicionales || null,
     req.params.id
   );
 
