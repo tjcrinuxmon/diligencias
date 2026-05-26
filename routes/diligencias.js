@@ -341,10 +341,16 @@ router.patch('/:id/estado', auth, (req, res) => {
   if (!valid.includes(estado)) return res.status(400).json({ error: 'Estado inválido' });
 
   const currentUser = getUser(req.session.userId);
+
+  // Solo coordinador, notificador y admin pueden cambiar el estado
+  if (!['admin', 'coordinador', 'notificador'].includes(currentUser?.rol)) {
+    return res.status(403).json({ error: 'Solo el coordinador o el notificador pueden cambiar el estado' });
+  }
+
   const d = db.prepare('SELECT creado_por, asignado_a FROM diligencias WHERE id = ?').get(req.params.id);
   if (!d) return res.status(404).json({ error: 'No encontrado' });
 
-  // Notificadores can only change estado of their assigned diligencias
+  // Notificadores: solo sus diligencias asignadas
   if (currentUser?.rol === 'notificador' && d.asignado_a !== req.session.userId) {
     return res.status(403).json({ error: 'Solo puedes modificar las diligencias asignadas a ti' });
   }

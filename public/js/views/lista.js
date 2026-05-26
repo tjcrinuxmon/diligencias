@@ -32,10 +32,11 @@ async function renderLista() {
         <option value="no_entregado">No Entregado</option>
         <option value="cancelado">Cancelado</option>
       </select>
+      ${['admin','coordinador','notificador'].includes(currentUser?.rol) ? `
       <select id="filter-area">
         <option value="">Todas las áreas</option>
         ${AREAS.map(a => `<option value="${a}">${a.replace('Dirección de ', '')}</option>`).join('')}
-      </select>
+      </select>` : ''}
       <input type="date" id="filter-desde" title="Desde">
       <input type="date" id="filter-hasta" title="Hasta">
       <button class="btn btn-outline btn-sm" onclick="clearFilters()">Limpiar</button>
@@ -73,7 +74,7 @@ async function renderLista() {
     searchTimer = setTimeout(() => filterDiligencias(), 400);
   });
   ['filter-estado','filter-area','filter-desde','filter-hasta'].forEach(id => {
-    document.getElementById(id).addEventListener('change', filterDiligencias);
+    document.getElementById(id)?.addEventListener('change', filterDiligencias);
   });
 
   await loadDiligencias();
