@@ -82,6 +82,11 @@ router.get('/', auth, (req, res) => {
     where.push('d.asignado_a = ?');
     params.push(req.session.userId);
   }
+  // Usuarios only see their own created diligencias
+  if (currentUser?.rol === 'usuario') {
+    where.push('d.creado_por = ?');
+    params.push(req.session.userId);
+  }
 
   if (estado) { where.push('d.estado = ?'); params.push(estado); }
   if (area) { where.push('d.area_requirente = ?'); params.push(area); }
@@ -332,13 +337,18 @@ router.patch('/:id/estado', auth, (req, res) => {
   const valid = ['pendiente','en_proceso','entregado','no_entregado','cancelado'];
   if (!valid.includes(estado)) return res.status(400).json({ error: 'Estado inválido' });
 
-  // Notificadores can only change estado of their assigned diligencias
   const currentUser = getUser(req.session.userId);
-  if (currentUser?.rol === 'notificador') {
-    const d = db.prepare('SELECT asignado_a FROM diligencias WHERE id = ?').get(req.params.id);
-    if (!d || d.asignado_a !== req.session.userId) {
-      return res.status(403).json({ error: 'Solo puedes modificar las diligencias asignadas a ti' });
-    }
+  const d = db.prepare('SELECT creado_por, asignado_a FROM diligencias WHERE id = ?').get(req.params.id);
+  if (!d) return res.status(404).json({ error: 'No encontrado' });
+
+  // Notificadores can only change estado of their assigned diligencias
+  if (currentUser?.rol === 'notificador' && d.asignado_a !== req.session.userId) {
+    return res.status(403).json({ error: 'Solo puedes modificar las diligencias asignadas a ti' });
+  }
+
+  // Solo el creador puede cancelar
+  if (estado === 'cancelado' && d.creado_por !== req.session.userId) {
+    return res.status(403).json({ error: 'Solo el creador puede cancelar esta notificación' });
   }
 
   db.prepare(`UPDATE diligencias SET estado = ?, updated_at = datetime('now','localtime') WHERE id = ?`)
@@ -397,8 +407,9 @@ router.post('/:id/seguimiento', auth, upload.single('archivo_acuse'), async (req
 router.get('/stats/resumen', auth, (req, res) => {
   const currentUser = getUser(req.session.userId);
   const isNotificador = currentUser?.rol === 'notificador';
-  const filterClause = isNotificador ? 'AND asignado_a = ?' : '';
-  const filterParams = isNotificador ? [req.session.userId] : [];
+  const isUsuario     = currentUser?.rol === 'usuario';
+  const filterClause = isNotificador ? 'AND asignado_a = ?' : isUsuario ? 'AND creado_por = ?' : '';
+  const filterParams = (isNotificador || isUsuario) ? [req.session.userId] : [];
 
   const count = (extra = '') =>
     db.prepare(`SELECT COUNT(*) as n FROM diligencias WHERE 1=1 ${filterClause} ${extra}`).get(...filterParams).n;

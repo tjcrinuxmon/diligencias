@@ -6,7 +6,7 @@ async function renderLista() {
   el.innerHTML = `
     <div class="page-header">
       <div>
-        <div class="page-title">Diligencias</div>
+        <div class="page-title">Notificaciones</div>
         <div class="page-subtitle">Gestión y seguimiento de notificaciones</div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;">

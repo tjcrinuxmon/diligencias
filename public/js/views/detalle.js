@@ -21,8 +21,11 @@ async function renderDetalle(id) {
           ${(currentUser && (currentUser.id === d.creado_por || currentUser.rol === 'admin' || currentUser.rol === 'coordinador')) ? `<button class="btn btn-outline" onclick="openEditarModal(${d.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:middle;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Editar</button>` : ''}
           <select id="cambio-estado" onchange="cambiarEstado(${d.id}, this.value, ${tieneFinal})" class="btn btn-outline">
             <option value="">Cambiar estado...</option>
-            ${['pendiente','en_proceso','entregado','no_entregado','cancelado'].map(e =>
-              `<option value="${e}" ${d.estado===e?'selected':''}>${{pendiente:'Pendiente',en_proceso:'En Proceso',entregado:'Entregado',no_entregado:'No Entregado',cancelado:'Cancelado'}[e]}</option>`
+            ${(currentUser?.id === d.creado_por
+                ? ['pendiente','en_proceso','entregado','no_entregado','cancelado']
+                : ['pendiente','en_proceso','entregado','no_entregado']
+              ).map(e =>
+                `<option value="${e}" ${d.estado===e?'selected':''}>${{pendiente:'Pendiente',en_proceso:'En Proceso',entregado:'Entregado',no_entregado:'No Entregado',cancelado:'Cancelado'}[e]}</option>`
             ).join('')}
           </select>
           ${!['entregado','cancelado'].includes(d.estado) ? `<button class="btn btn-primary" onclick="openSeguimientoModal(${d.id})">📦 Registrar Tramo</button>` : ''}
@@ -96,8 +99,8 @@ async function renderDetalle(id) {
         <!-- Sidebar detalle -->
         <div>
           ${d.tiene_termino_legal ? `
-          <div class="card" style="margin-bottom:16px;border:1.5px solid ${days <= 0 ? 'var(--red)' : days <= 3 ? 'var(--orange)' : 'var(--gray-200)'};">
-            <div class="card-header" style="background:${days <= 0 ? 'var(--red-light)' : days <= 3 ? 'var(--orange-light)' : 'var(--gray-50)'};">
+          <div class="card" style="margin-bottom:16px;border:1.5px solid ${d.estado==='entregado' ? 'var(--gray-200)' : days <= 0 ? 'var(--red)' : days <= 3 ? 'var(--orange)' : 'var(--gray-200)'};">
+            <div class="card-header" style="background:${d.estado==='entregado' ? 'var(--gray-50)' : days <= 0 ? 'var(--red-light)' : days <= 3 ? 'var(--orange-light)' : 'var(--gray-50)'};">
               <h3>⚖️ Término Legal</h3>
             </div>
             <div class="card-body">
@@ -353,14 +356,14 @@ async function openEditarModal(id) {
   let editDocsToDelete = new Set();
   let editNewFiles = [];
 
-  openModal('Editar Diligencia', `
+  openModal('Editar Notificación', `
     <form id="form-editar" style="max-height:70vh;overflow-y:auto;padding-right:4px;">
       <div class="form-grid">
         <div class="field-group">
           <label>Área Requirente <span class="req">*</span></label>
-          <select name="area_requirente" required>
-            <option value="">— Seleccionar —</option>${areasOptions}
-          </select>
+          ${currentUser?.rol === 'usuario'
+            ? `<input type="text" name="area_requirente" value="${d.area_requirente || ''}" readonly style="background:var(--gray-50);cursor:default;" required>`
+            : `<select name="area_requirente" required><option value="">— Seleccionar —</option>${areasOptions}</select>`}
         </div>
         <div class="field-group">
           <label>Número de Oficio <span class="req">*</span></label>

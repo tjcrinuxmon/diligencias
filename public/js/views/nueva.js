@@ -6,7 +6,7 @@ function renderNueva() {
   el.innerHTML = `
     <div class="page-header">
       <div>
-        <div class="page-title">Nueva Diligencia</div>
+        <div class="page-title">Nueva Notificación</div>
         <div class="page-subtitle">Registrar solicitud de notificación</div>
       </div>
     </div>
@@ -22,10 +22,12 @@ function renderNueva() {
 
             <div class="field-group">
               <label>Área Requirente <span class="req">*</span></label>
-              <select name="area_requirente" required>
+              ${currentUser?.rol === 'usuario'
+                ? `<input type="text" name="area_requirente" value="${currentUser.area || ''}" readonly style="background:var(--gray-50);cursor:default;" required>`
+                : `<select name="area_requirente" required>
                 <option value="">— Seleccionar área —</option>
                 ${AREAS.map(a => `<option value="${a}">${a}</option>`).join('')}
-              </select>
+              </select>`}
             </div>
 
             <div class="toggle-row">

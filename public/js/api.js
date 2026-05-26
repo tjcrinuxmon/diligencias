@@ -78,6 +78,7 @@ function daysUntil(dateStr) {
 }
 function terminoBadge(d) {
   if (!d.tiene_termino_legal) return '';
+  if (d.estado === 'entregado') return `<span class="termino-badge termino-ok">✅ Cumplido</span>`;
   const days = daysUntil(d.termino_fecha);
   if (days === null) return '';
   if (days < 0) return `<span class="termino-badge termino-vence-hoy">⚠ Vencido</span>`;
