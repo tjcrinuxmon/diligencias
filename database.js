@@ -94,13 +94,60 @@ db.exec(`
 try { db.exec(`ALTER TABLE seguimiento ADD COLUMN tipo TEXT NOT NULL DEFAULT 'final'`); } catch (_) {}
 try { db.exec(`ALTER TABLE seguimiento ADD COLUMN lugar TEXT`); } catch (_) {}
 
+// Migration: add 'coordinador' role to CHECK constraint
+try {
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='usuarios'").get();
+  if (row && row.sql && !row.sql.includes("'coordinador'")) {
+    db.pragma('foreign_keys = OFF');
+    // Clean up any leftover temp table from a previous failed attempt
+    db.exec(`DROP TABLE IF EXISTS usuarios_new`);
+    db.exec(`
+      CREATE TABLE usuarios_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        rol TEXT DEFAULT 'usuario' CHECK(rol IN ('admin','usuario','notificador','coordinador')),
+        area TEXT,
+        activo INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT (datetime('now','localtime'))
+      );
+      INSERT INTO usuarios_new SELECT * FROM usuarios;
+      DROP TABLE usuarios;
+      ALTER TABLE usuarios_new RENAME TO usuarios;
+    `);
+    db.pragma('foreign_keys = ON');
+    console.log('✅ Migración: rol coordinador agregado');
+  }
+} catch(e) {
+  db.pragma('foreign_keys = ON');
+  console.error('Migration coordinador:', e.message);
+}
+
 // Seed: default admin
 if (!db.prepare(`SELECT id FROM usuarios WHERE rol = 'admin' LIMIT 1`).get()) {
-  const hash = bcrypt.hashSync('Admin1234!', 10);
+  const adminPwd = process.env.ADMIN_SEED_PASSWORD || require('crypto').randomBytes(12).toString('base64url');
+  const hash = bcrypt.hashSync(adminPwd, 10);
   db.prepare(`INSERT INTO usuarios (nombre, email, password, rol, area) VALUES (?, ?, ?, ?, ?)`)
     .run('Administrador', 'admin@diligencias.gob.mx', hash, 'admin', 'Administración');
-  console.log('👤 Usuario admin creado: admin@diligencias.gob.mx / Admin1234!');
+  console.log(`👤 Admin creado: admin@diligencias.gob.mx / ${adminPwd}  ← guarda esta contraseña`);
 }
+
+// Seed: Secretaría Particular (coordinador)
+const COORD_AREA = 'Coordinación de Análisis de Información y Control Documental';
+try {
+  const existing = db.prepare(`SELECT id, area FROM usuarios WHERE email = 'secretaria@ine.mx' LIMIT 1`).get();
+  if (!existing) {
+    const secPwd = process.env.SECRETARIA_SEED_PASSWORD || require('crypto').randomBytes(12).toString('base64url');
+    const hash = bcrypt.hashSync(secPwd, 10);
+    db.prepare(`INSERT INTO usuarios (nombre, email, password, rol, area) VALUES (?, ?, ?, ?, ?)`)
+      .run('Secretaría Particular', 'secretaria@ine.mx', hash, 'coordinador', COORD_AREA);
+    console.log(`👤 Secretaría Particular creada: secretaria@ine.mx / ${secPwd}  ← guarda esta contraseña`);
+  } else if (existing.area !== COORD_AREA) {
+    db.prepare(`UPDATE usuarios SET area = ? WHERE id = ?`).run(COORD_AREA, existing.id);
+    console.log('✅ Área de Secretaría Particular corregida');
+  }
+} catch(e) { console.error('Seed Secretaría Particular:', e.message); }
 
 console.log('✅ Base de datos inicializada correctamente');
 

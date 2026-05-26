@@ -5,6 +5,11 @@ const db = require('../database');
 
 function auth(req, res, next) {
   if (!req.session.userId) return res.status(401).json({ error: 'No autenticado' });
+  const u = db.prepare('SELECT id, activo FROM usuarios WHERE id = ?').get(req.session.userId);
+  if (!u || !u.activo) {
+    req.session.destroy(() => {});
+    return res.status(401).json({ error: 'Sesión inválida' });
+  }
   next();
 }
 function adminOnly(req, res, next) {
@@ -12,8 +17,18 @@ function adminOnly(req, res, next) {
   next();
 }
 
-router.get('/', auth, (req, res) => {
-  const users = db.prepare('SELECT id, nombre, email, rol, area, activo, created_at FROM usuarios ORDER BY nombre').all();
+function notNotificador(req, res, next) {
+  if (req.session.userRol === 'notificador') return res.status(403).json({ error: 'Sin permisos' });
+  next();
+}
+
+router.get('/', auth, notNotificador, (req, res) => {
+  const { rol } = req.query;
+  let sql = 'SELECT id, nombre, email, rol, area, activo, created_at FROM usuarios';
+  const params = [];
+  if (rol) { sql += ' WHERE rol = ?'; params.push(rol); }
+  sql += ' ORDER BY nombre';
+  const users = db.prepare(sql).all(...params);
   res.json(users);
 });
 

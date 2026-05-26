@@ -3,9 +3,18 @@ let currentView = 'dashboard';
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
-  // SSO desde el portal
-  const ssoToken = new URLSearchParams(location.search).get('sso_token')
+  const params = new URLSearchParams(location.search);
+  const ssoToken = params.get('sso_token');
+  const ssoError = params.get('error');
+
   if (ssoToken) { window.location.href = `/api/dil/auth/sso?sso_token=${ssoToken}`; return }
+
+  if (ssoError === 'no_access') {
+    document.getElementById('auth-loading').innerHTML =
+      '<p style="color:#b91c1c;font-size:14px;text-align:center;padding:20px">No tienes acceso a este módulo.<br>Contacta al administrador del sistema.</p>';
+    setTimeout(() => window.location.replace('/'), 4000);
+    return;
+  }
 
   // Check existing session — if none, redirect to portal
   try {
@@ -18,18 +27,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function showApp(user) {
-  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('auth-loading').style.display = 'none';
   document.getElementById('main-app').style.display = 'flex';
 
   // Set user info in sidebar
   document.getElementById('user-name').textContent = user.nombre;
-  document.getElementById('user-role').textContent = { admin: 'Administrador', usuario: 'Usuario', notificador: 'Notificador' }[user.rol] || user.rol;
+  document.getElementById('user-role').textContent = { admin: 'Administrador', usuario: 'Usuario', notificador: 'Notificador', coordinador: 'Coordinador' }[user.rol] || user.rol;
   document.getElementById('user-avatar').textContent = user.nombre[0].toUpperCase();
 
-  // Admin nav
-  if (user.rol === 'admin') {
+  // Admin/coordinador nav
+  if (user.rol === 'admin' || user.rol === 'coordinador') {
     document.getElementById('admin-nav').style.display = 'block';
-    document.getElementById('nav-usuarios').style.display = 'flex';
+    document.getElementById('nav-usuarios').style.display = user.rol === 'admin' ? 'flex' : 'none';
+  }
+
+  // Hide "Nueva Diligencia" nav for notificadores
+  if (user.rol === 'notificador') {
+    const navNueva = document.querySelector('.nav-item[data-view="nueva"]');
+    if (navNueva) navNueva.style.display = 'none';
   }
 
   // Logout → portal

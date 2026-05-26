@@ -1,7 +1,18 @@
 // API Client
 const API = {
+  _csrfToken: null,
+  async fetchCsrf() {
+    try {
+      const r = await fetch('/api/dil/auth/csrf');
+      if (r.ok) { const d = await r.json(); this._csrfToken = d.csrfToken || null; }
+    } catch {}
+  },
   async request(method, url, data, isFormData = false) {
     const opts = { method, headers: {} };
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      if (!this._csrfToken) await this.fetchCsrf();
+      if (this._csrfToken) opts.headers['X-CSRF-Token'] = this._csrfToken;
+    }
     if (data && !isFormData) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(data); }
     if (data && isFormData) { opts.body = data; }
     const res = await fetch('/api/dil' + url, opts);
@@ -88,6 +99,7 @@ const ESTADOS_MX = [
 ];
 
 const AREAS = [
+  'Coordinación de Análisis de Información y Control Documental',
   'Dirección de Instrucción Recursal',
   'Dirección de Servicios Legales',
   'Dirección de Asuntos Laborales',

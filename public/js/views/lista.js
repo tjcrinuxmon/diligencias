@@ -14,10 +14,11 @@ async function renderLista() {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
           Exportar PDF
         </button>
+        ${currentUser && currentUser.rol !== 'notificador' ? `
         <button class="btn btn-gold" onclick="navigate('nueva')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Nueva
-        </button>
+        </button>` : ''}
       </div>
     </div>
 
@@ -51,12 +52,13 @@ async function renderLista() {
               <th>Autoridad</th>
               <th>Término</th>
               <th>Estado</th>
+              ${currentUser && currentUser.rol !== 'notificador' ? '<th>Asignado a</th>' : ''}
               <th>Creado</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="tabla-body">
-            <tr><td colspan="8"><div class="spinner"></div></td></tr>
+            <tr><td colspan="9"><div class="spinner"></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -113,6 +115,9 @@ async function loadDiligencias() {
         <h3>Sin resultados</h3><p>No se encontraron diligencias con los filtros aplicados</p>
       </div></td></tr>`;
     } else {
+      const isNotificador = currentUser && currentUser.rol === 'notificador';
+      const canAssign = currentUser && (currentUser.rol === 'admin' || currentUser.rol === 'coordinador');
+      const canEdit = (d) => currentUser && (currentUser.id === d.creado_por || currentUser.rol === 'admin' || currentUser.rol === 'coordinador');
       tbody.innerHTML = data.map(d => `
         <tr class="row-link" onclick="navigate('detalle', ${d.id})">
           <td><span class="folio">${d.folio}</span>${d.tiene_anexos ? '<br><span style="font-size:10px;color:var(--blue);">📎 Anexos</span>' : ''}</td>
@@ -127,12 +132,17 @@ async function loadDiligencias() {
           </td>
           <td>${terminoBadge(d)}</td>
           <td>${estadoBadge(d.estado)}</td>
+          ${!isNotificador ? `<td><span style="font-size:12px;color:var(--gray-600);">${d.asignado_a_nombre || '<span style="color:var(--gray-400)">Sin asignar</span>'}</span></td>` : ''}
           <td><span style="font-size:12px;color:var(--gray-500);">${formatDate(d.created_at)}</span></td>
           <td style="white-space:nowrap;">
             <button class="btn btn-outline btn-sm icon-btn" title="Ver detalle" onclick="event.stopPropagation(); navigate('detalle', ${d.id})">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
-            ${(currentUser && (currentUser.id === d.creado_por || currentUser.rol === 'admin')) ? `
+            ${canAssign ? `
+            <button class="btn btn-outline btn-sm icon-btn" title="Asignar notificador" style="margin-left:4px;" onclick="event.stopPropagation(); openAsignarModal(${d.id}, '${d.folio}', ${d.asignado_a || 'null'})">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+            </button>` : ''}
+            ${canEdit(d) ? `
             <button class="btn btn-outline btn-sm icon-btn" title="Editar" style="margin-left:4px;" onclick="event.stopPropagation(); openEditarModal(${d.id})">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>` : ''}
@@ -276,4 +286,53 @@ async function exportarPDF() {
       btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg> Exportar PDF`;
     }
   }
+}
+
+async function openAsignarModal(diligenciaId, folio, asignadoActualId) {
+  let notificadores;
+  try {
+    const res = await API.get('/usuarios?rol=notificador');
+    notificadores = (res.data || res).filter(u => u.activo);
+  } catch(e) {
+    toast('Error al cargar notificadores', 'error');
+    return;
+  }
+
+  const options = notificadores.map(n =>
+    `<option value="${n.id}" ${n.id === asignadoActualId ? 'selected' : ''}>${n.nombre}</option>`
+  ).join('');
+
+  openModal(`Asignar Diligencia ${folio}`, `
+    <form id="form-asignar">
+      <div class="field-group" style="margin-bottom:16px;">
+        <label>Notificador asignado</label>
+        <select name="asignado_a" id="select-notificador">
+          <option value="">— Sin asignar —</option>
+          ${options}
+        </select>
+      </div>
+      <div id="asignar-error" class="alert alert-error" style="display:none;margin-bottom:12px;"></div>
+      <div class="btn-group" style="justify-content:flex-end;">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById('form-asignar').onsubmit = async (e) => {
+    e.preventDefault();
+    const asignado_a = document.getElementById('select-notificador').value || null;
+    const errEl = document.getElementById('asignar-error');
+    errEl.style.display = 'none';
+    try {
+      await API.patch(`/diligencias/${diligenciaId}/asignar`, { asignado_a });
+      closeModal();
+      toast('Asignación guardada', 'success');
+      if (currentView === 'detalle') renderDetalle(diligenciaId);
+      else await loadDiligencias();
+    } catch(err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+    }
+  };
 }

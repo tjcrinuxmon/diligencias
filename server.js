@@ -1,9 +1,17 @@
+require('dotenv').config();
 process.env.TZ = 'America/Mexico_City';
 const express = require('express');
 const session = require('express-session');
-const path = require('path');
-const fs = require('fs');
+const cors    = require('cors');
+const helmet  = require('helmet');
+const path    = require('path');
+const fs      = require('fs');
 require('./database'); // synchronous init — runs migrations and seeds on startup
+
+if (!process.env.SESSION_SECRET || !process.env.PORTAL_SSO_SECRET) {
+  console.error('FATAL: Faltan variables de entorno (SESSION_SECRET, PORTAL_SSO_SECRET)');
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -15,17 +23,40 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 }
 
 // Middleware
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/api/uploads', express.static(UPLOADS_DIR));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'diligencias-secret-2024',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 8 * 60 * 60 * 1000 } // 8 horas
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 8 * 60 * 60 * 1000
+  }
 }));
+
+// CSRF protection — only checked for authenticated sessions on mutating requests
+app.use((req, res, next) => {
+  const mutating = ['POST', 'PUT', 'PATCH', 'DELETE']
+  const exempt   = ['/api/auth/login', '/api/auth/logout']
+  if (mutating.includes(req.method) && !exempt.includes(req.path) && req.session?.userId) {
+    if (!req.session.csrfToken || req.headers['x-csrf-token'] !== req.session.csrfToken) {
+      return res.status(403).json({ error: 'CSRF token inválido' })
+    }
+  }
+  next()
+})
 
 app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/usuarios',    require('./routes/usuarios'));

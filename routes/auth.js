@@ -1,11 +1,22 @@
-const express = require('express');
-const router = express.Router();
-const bcrypt = require('bcryptjs');
-const jwt    = require('jsonwebtoken');
-const db = require('../database');
-const PORTAL_SSO_SECRET = process.env.PORTAL_SSO_SECRET || 'ine_portal_sso_dilig_2026';
+const express   = require('express');
+const router    = express.Router();
+const bcrypt    = require('bcryptjs');
+const jwt       = require('jsonwebtoken');
+const crypto    = require('crypto');
+const rateLimit = require('express-rate-limit');
+const db        = require('../database');
 
-router.post('/login', (req, res) => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos. Espera 15 minutos.' },
+});
+const PORTAL_SSO_SECRET = process.env.PORTAL_SSO_SECRET;
+if (!PORTAL_SSO_SECRET) { console.error('FATAL: PORTAL_SSO_SECRET no definido'); process.exit(1); }
+
+router.post('/login', loginLimiter, (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Credenciales requeridas' });
 
@@ -18,13 +29,15 @@ router.post('/login', (req, res) => {
   req.session.userId = user.id;
   req.session.userRol = user.rol;
   req.session.userName = user.nombre;
+  req.session.csrfToken = crypto.randomBytes(24).toString('hex');
 
   res.json({
     id: user.id,
     nombre: user.nombre,
     email: user.email,
     rol: user.rol,
-    area: user.area
+    area: user.area,
+    csrfToken: req.session.csrfToken,
   });
 });
 
@@ -35,8 +48,14 @@ router.post('/logout', (req, res) => {
 
 router.get('/me', (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'No autenticado' });
+  if (!req.session.csrfToken) req.session.csrfToken = crypto.randomBytes(24).toString('hex');
   const user = db.prepare('SELECT id, nombre, email, rol, area FROM usuarios WHERE id = ?').get(req.session.userId);
   res.json(user);
+});
+
+router.get('/csrf', (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'No autenticado' });
+  res.json({ csrfToken: req.session.csrfToken || '' });
 });
 
 // GET /api/auth/sso?sso_token=xxx  — portal SSO entry point
@@ -45,17 +64,18 @@ router.get('/sso', (req, res) => {
   if (!sso_token) return res.redirect('/?error=missing_token');
   try {
     const payload = jwt.verify(sso_token, PORTAL_SSO_SECRET);
-    let user = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(payload.email);
+    let user = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(payload.email);
     if (!user) {
-      // Auto-create user on first SSO login
-      const hash = bcrypt.hashSync('sso_placeholder', 4);
-      db.prepare('INSERT OR IGNORE INTO usuarios (nombre, email, password, rol, area, activo) VALUES (?,?,?,?,?,1)')
-        .run(payload.nombre, payload.email, hash, payload.rol || 'usuario', payload.area || '');
-      user = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(payload.email);
+      return res.redirect('/diligencias?error=no_access');
     }
-    req.session.userId   = user.id;
-    req.session.userRol  = user.rol;
-    req.session.userName = user.nombre;
+    // Sync from portal on every SSO login
+    db.prepare('UPDATE usuarios SET nombre=?, rol=?, area=?, activo=1 WHERE email=?')
+      .run(payload.nombre, payload.rol || 'usuario', payload.area || '', payload.email);
+    user = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(payload.email);
+    req.session.userId    = user.id;
+    req.session.userRol   = user.rol;
+    req.session.userName  = user.nombre;
+    req.session.csrfToken = crypto.randomBytes(24).toString('hex');
     res.redirect('/diligencias');
   } catch {
     res.redirect('/diligencias?error=invalid_token');

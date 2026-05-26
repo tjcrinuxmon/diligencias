@@ -5,9 +5,14 @@ const path = require('path');
 const db = require('../database');
 const mailer = require('../mailer');
 
-// Auth middleware
+// Auth middleware — re-validates user status on every request
 function auth(req, res, next) {
   if (!req.session.userId) return res.status(401).json({ error: 'No autenticado' });
+  const u = db.prepare('SELECT id, rol, activo FROM usuarios WHERE id = ?').get(req.session.userId);
+  if (!u || !u.activo) {
+    req.session.destroy(() => {});
+    return res.status(401).json({ error: 'Sesión inválida' });
+  }
   next();
 }
 
@@ -60,11 +65,23 @@ function generateFolio() {
   return `DIL-${year}${month}-${seq}`;
 }
 
+// Helper: get user with role
+function getUser(userId) {
+  return db.prepare('SELECT id, rol FROM usuarios WHERE id = ?').get(userId);
+}
+
 // GET all - with filters
 router.get('/', auth, (req, res) => {
   const { estado, area, desde, hasta, buscar, page = 1, limit = 20 } = req.query;
+  const currentUser = getUser(req.session.userId);
   let where = ['1=1'];
   let params = [];
+
+  // Notificadores only see their assigned diligencias
+  if (currentUser?.rol === 'notificador') {
+    where.push('d.asignado_a = ?');
+    params.push(req.session.userId);
+  }
 
   if (estado) { where.push('d.estado = ?'); params.push(estado); }
   if (area) { where.push('d.area_requirente = ?'); params.push(area); }
@@ -78,7 +95,7 @@ router.get('/', auth, (req, res) => {
 
   const offset = (page - 1) * limit;
   const sql = `
-    SELECT d.*, 
+    SELECT d.*,
       u1.nombre as creado_por_nombre,
       u2.nombre as asignado_a_nombre,
       s.fecha_entrega, s.nombre_recibio
@@ -131,7 +148,12 @@ router.get('/:id', auth, (req, res) => {
 });
 
 // POST create (JSON only — files uploaded separately to /:id/documentos)
+// Notificadores cannot create diligencias
 router.post('/', auth, (req, res) => {
+  const currentUser = getUser(req.session.userId);
+  if (currentUser?.rol === 'notificador') {
+    return res.status(403).json({ error: 'Los notificadores no pueden crear diligencias' });
+  }
   const {
     area_requirente, tiene_anexos, numero_oficio, id_sai,
     autoridad_nombre, autoridad_domicilio, autoridad_colonia,
@@ -209,13 +231,14 @@ router.delete('/:id/documentos/:docId', auth, (req, res) => {
   res.json({ ok: true });
 });
 
-// PUT edit diligencia (creador o admin)
+// PUT edit diligencia (creador, admin o coordinador)
 router.put('/:id', auth, (req, res) => {
   const d = db.prepare('SELECT creado_por FROM diligencias WHERE id = ?').get(req.params.id);
   if (!d) return res.status(404).json({ error: 'No encontrada' });
 
-  const user = db.prepare('SELECT rol FROM usuarios WHERE id = ?').get(req.session.userId);
-  if (d.creado_por !== req.session.userId && user?.rol !== 'admin') {
+  const user = getUser(req.session.userId);
+  const canEdit = d.creado_por === req.session.userId || user?.rol === 'admin' || user?.rol === 'coordinador';
+  if (!canEdit) {
     return res.status(403).json({ error: 'Sin permiso para editar esta diligencia' });
   }
 
@@ -282,11 +305,41 @@ router.delete('/:id', auth, (req, res) => {
   res.json({ ok: true });
 });
 
+// PATCH assign diligencia to notificador (admin o coordinador only)
+router.patch('/:id/asignar', auth, (req, res) => {
+  const currentUser = getUser(req.session.userId);
+  if (!['admin', 'coordinador'].includes(currentUser?.rol)) {
+    return res.status(403).json({ error: 'Solo coordinadores y administradores pueden asignar diligencias' });
+  }
+
+  const d = db.prepare('SELECT id FROM diligencias WHERE id = ?').get(req.params.id);
+  if (!d) return res.status(404).json({ error: 'No encontrada' });
+
+  const { asignado_a } = req.body;
+  if (asignado_a) {
+    const notificador = db.prepare("SELECT id FROM usuarios WHERE id = ? AND rol = 'notificador' AND activo = 1").get(asignado_a);
+    if (!notificador) return res.status(400).json({ error: 'Notificador no válido' });
+  }
+
+  db.prepare(`UPDATE diligencias SET asignado_a = ?, updated_at = datetime('now','localtime') WHERE id = ?`)
+    .run(asignado_a || null, req.params.id);
+  res.json({ ok: true });
+});
+
 // PUT update estado
 router.patch('/:id/estado', auth, (req, res) => {
   const { estado } = req.body;
   const valid = ['pendiente','en_proceso','entregado','no_entregado','cancelado'];
   if (!valid.includes(estado)) return res.status(400).json({ error: 'Estado inválido' });
+
+  // Notificadores can only change estado of their assigned diligencias
+  const currentUser = getUser(req.session.userId);
+  if (currentUser?.rol === 'notificador') {
+    const d = db.prepare('SELECT asignado_a FROM diligencias WHERE id = ?').get(req.params.id);
+    if (!d || d.asignado_a !== req.session.userId) {
+      return res.status(403).json({ error: 'Solo puedes modificar las diligencias asignadas a ti' });
+    }
+  }
 
   db.prepare(`UPDATE diligencias SET estado = ?, updated_at = datetime('now','localtime') WHERE id = ?`)
     .run(estado, req.params.id);
@@ -297,6 +350,15 @@ router.patch('/:id/estado', auth, (req, res) => {
 router.post('/:id/seguimiento', auth, upload.single('archivo_acuse'), async (req, res) => {
   const { fecha_entrega, hora_entrega, nombre_recibio, observaciones, lugar, tipo } = req.body;
   const diligencia_id = req.params.id;
+
+  // Notificadores can only add seguimiento to their assigned diligencias
+  const currentUser = getUser(req.session.userId);
+  if (currentUser?.rol === 'notificador') {
+    const d = db.prepare('SELECT asignado_a FROM diligencias WHERE id = ?').get(diligencia_id);
+    if (!d || d.asignado_a !== req.session.userId) {
+      return res.status(403).json({ error: 'Solo puedes registrar seguimiento en diligencias asignadas a ti' });
+    }
+  }
   const esFinal = tipo === 'final';
 
   const archivo = req.file ? `/uploads/${req.file.filename}` : null;
@@ -333,19 +395,24 @@ router.post('/:id/seguimiento', auth, upload.single('archivo_acuse'), async (req
 
 // GET stats for dashboard
 router.get('/stats/resumen', auth, (req, res) => {
-  const total = db.prepare('SELECT COUNT(*) as n FROM diligencias').get().n;
-  const pendiente = db.prepare("SELECT COUNT(*) as n FROM diligencias WHERE estado='pendiente'").get().n;
-  const en_proceso = db.prepare("SELECT COUNT(*) as n FROM diligencias WHERE estado='en_proceso'").get().n;
-  const entregado = db.prepare("SELECT COUNT(*) as n FROM diligencias WHERE estado='entregado'").get().n;
-  const con_termino = db.prepare("SELECT COUNT(*) as n FROM diligencias WHERE tiene_termino_legal=1 AND estado NOT IN ('entregado','cancelado')").get().n;
-  const vencen_hoy = db.prepare(`
-    SELECT COUNT(*) as n FROM diligencias 
-    WHERE tiene_termino_legal=1 AND termino_fecha = date('now') AND estado NOT IN ('entregado','cancelado')
-  `).get().n;
+  const currentUser = getUser(req.session.userId);
+  const isNotificador = currentUser?.rol === 'notificador';
+  const filterClause = isNotificador ? 'AND asignado_a = ?' : '';
+  const filterParams = isNotificador ? [req.session.userId] : [];
 
-  const por_area = db.prepare(`
-    SELECT area_requirente, COUNT(*) as total FROM diligencias GROUP BY area_requirente ORDER BY total DESC
-  `).all();
+  const count = (extra = '') =>
+    db.prepare(`SELECT COUNT(*) as n FROM diligencias WHERE 1=1 ${filterClause} ${extra}`).get(...filterParams).n;
+
+  const total      = count();
+  const pendiente  = count(`AND estado='pendiente'`);
+  const en_proceso = count(`AND estado='en_proceso'`);
+  const entregado  = count(`AND estado='entregado'`);
+  const con_termino = count(`AND tiene_termino_legal=1 AND estado NOT IN ('entregado','cancelado')`);
+  const vencen_hoy  = count(`AND tiene_termino_legal=1 AND termino_fecha = date('now') AND estado NOT IN ('entregado','cancelado')`);
+
+  const por_area = db.prepare(
+    `SELECT area_requirente, COUNT(*) as total FROM diligencias WHERE 1=1 ${filterClause} GROUP BY area_requirente ORDER BY total DESC`
+  ).all(...filterParams);
 
   res.json({ total, pendiente, en_proceso, entregado, con_termino, vencen_hoy, por_area });
 });

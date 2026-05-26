@@ -18,7 +18,7 @@ async function renderDetalle(id) {
           </div>
         </div>
         <div class="btn-group">
-          ${(currentUser && (currentUser.id === d.creado_por || currentUser.rol === 'admin')) ? `<button class="btn btn-outline" onclick="openEditarModal(${d.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:middle;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Editar</button>` : ''}
+          ${(currentUser && (currentUser.id === d.creado_por || currentUser.rol === 'admin' || currentUser.rol === 'coordinador')) ? `<button class="btn btn-outline" onclick="openEditarModal(${d.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:middle;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Editar</button>` : ''}
           <select id="cambio-estado" onchange="cambiarEstado(${d.id}, this.value, ${tieneFinal})" class="btn btn-outline">
             <option value="">Cambiar estado...</option>
             ${['pendiente','en_proceso','entregado','no_entregado','cancelado'].map(e =>
@@ -115,6 +115,25 @@ async function renderDetalle(id) {
               ${d.contacto_email ? `<div class="detail-item" style="margin-bottom:8px;"><label>Email</label><a href="mailto:${d.contacto_email}" style="color:var(--navy);">${d.contacto_email}</a></div>` : ''}
               ${d.contacto_telefono ? `<div class="detail-item"><label>Teléfono</label><span>${d.contacto_telefono}</span></div>` : ''}
               ${!d.contacto_nombre && !d.contacto_email && !d.contacto_telefono ? '<p style="color:var(--gray-500);font-size:13px;">Sin datos de contacto</p>' : ''}
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+              <h3>Notificador Asignado</h3>
+              ${currentUser && (currentUser.rol === 'admin' || currentUser.rol === 'coordinador') ? `
+              <button class="btn btn-outline btn-sm" onclick="openAsignarModal(${d.id}, '${d.folio}', ${d.asignado_a || 'null'})">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:3px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Cambiar
+              </button>` : ''}
+            </div>
+            <div class="card-body">
+              ${d.asignado_a_nombre
+                ? `<div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:36px;height:36px;border-radius:50%;background:#0369a1;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0;">${d.asignado_a_nombre[0].toUpperCase()}</div>
+                    <span style="font-weight:600;font-size:14px;">${d.asignado_a_nombre}</span>
+                  </div>`
+                : `<p style="color:var(--gray-500);font-size:13px;">Sin notificador asignado</p>`}
             </div>
           </div>
 

@@ -36,7 +36,7 @@ async function renderUsuarios() {
                     </div>
                   </td>
                   <td style="font-size:13px;">${u.email}</td>
-                  <td><span class="badge" style="background:${u.rol==='admin'?'var(--red-light)':'var(--blue-light)'};color:${u.rol==='admin'?'var(--red)':'var(--blue)'};">${u.rol}</span></td>
+                  <td><span class="badge" style="background:${u.rol==='admin'?'var(--red-light)':u.rol==='coordinador'?'#fef3c7':'var(--blue-light)'};color:${u.rol==='admin'?'var(--red)':u.rol==='coordinador'?'#92400e':'var(--blue)'};">${{admin:'Administrador',coordinador:'Coordinador',notificador:'Notificador',usuario:'Usuario'}[u.rol]||u.rol}</span></td>
                   <td style="font-size:13px;">${u.area || '—'}</td>
                   <td>${u.activo ? '<span class="badge" style="background:var(--green-light);color:var(--green);">Activo</span>' : '<span class="badge" style="background:var(--gray-100);color:var(--gray-500);">Inactivo</span>'}</td>
                   <td style="font-size:12px;color:var(--gray-500);">${formatDate(u.created_at)}</td>
@@ -67,7 +67,7 @@ function openNuevoUsuario() {
           <select name="rol">
             <option value="usuario">Usuario</option>
             <option value="notificador">Notificador</option>
-            <option value="admin">Administrador</option>
+            <option value="coordinador">Coordinador</option>
           </select>
         </div>
         <div class="field-group">
@@ -112,7 +112,7 @@ function openEditUsuario(id, nombre, rol, area, activo) {
           <select name="rol">
             <option value="usuario" ${rol==='usuario'?'selected':''}>Usuario</option>
             <option value="notificador" ${rol==='notificador'?'selected':''}>Notificador</option>
-            <option value="admin" ${rol==='admin'?'selected':''}>Administrador</option>
+            <option value="coordinador" ${rol==='coordinador'?'selected':''}>Coordinador</option>
           </select>
         </div>
         <div class="field-group">
