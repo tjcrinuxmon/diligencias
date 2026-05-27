@@ -68,7 +68,12 @@ function formatDate(d) {
 }
 function formatDatetime(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const s = String(d).replace('T', ' ').split('.')[0];
+  const [date, time] = s.split(' ');
+  if (!date) return '—';
+  const [y, m, dd] = date.split('-');
+  const t = time ? time.slice(0, 5) : '';
+  return `${dd}/${m}/${y}${t ? ' ' + t : ''}`;
 }
 function daysUntil(dateStr) {
   if (!dateStr) return null;

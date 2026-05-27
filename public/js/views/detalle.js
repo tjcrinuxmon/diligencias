@@ -29,7 +29,7 @@ async function renderDetalle(id) {
                 `<option value="${e}" ${d.estado===e?'selected':''}>${{pendiente:'Pendiente',en_proceso:'En Proceso',entregado:'Entregado',no_entregado:'No Entregado',cancelado:'Cancelado'}[e]}</option>`
             ).join('')}
           </select>` : ''}
-          ${!['entregado','cancelado'].includes(d.estado) ? `<button class="btn btn-primary" onclick="openSeguimientoModal(${d.id})">📦 Registrar Tramo</button>` : ''}
+          ${!['entregado','cancelado'].includes(d.estado) && ['admin','coordinador','notificador'].includes(currentUser?.rol) ? `<button class="btn btn-primary" onclick="openSeguimientoModal(${d.id})">📦 Registrar Tramo</button>` : ''}
         </div>
       </div>
 
@@ -90,7 +90,7 @@ async function renderDetalle(id) {
           <div class="card">
             <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
               <h3>Historial de Seguimiento</h3>
-              ${!['entregado','cancelado'].includes(d.estado) ? `<button class="btn btn-primary btn-sm" onclick="openSeguimientoModal(${d.id})">📦 Registrar Tramo</button>` : ''}
+              ${!['entregado','cancelado'].includes(d.estado) && ['admin','coordinador','notificador'].includes(currentUser?.rol) ? `<button class="btn btn-primary btn-sm" onclick="openSeguimientoModal(${d.id})">📦 Registrar Tramo</button>` : ''}
             </div>
             <div class="card-body">
               ${buildHistorial(d.seguimiento)}
@@ -238,6 +238,11 @@ function openSeguimientoModal(id, preCheckFinal = false) {
     errEl.style.display = 'none';
     const fd = new FormData(e.target);
     const esFinal = document.getElementById('es-entrega-final').checked;
+    if (esFinal && !fd.get('hora_entrega')) {
+      errEl.textContent = 'La hora de entrega es obligatoria para la entrega final';
+      errEl.style.display = 'block';
+      return;
+    }
     fd.append('tipo', esFinal ? 'final' : 'parcial');
     const fileInput = document.getElementById('acuse-file');
     if (fileInput.files[0]) fd.append('archivo_acuse', fileInput.files[0]);

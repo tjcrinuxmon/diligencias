@@ -133,6 +133,11 @@ router.get('/:id', auth, (req, res) => {
   `).get(req.params.id);
   if (!d) return res.status(404).json({ error: 'No encontrada' });
 
+  const currentUserDetail = getUser(req.session.userId);
+  if (currentUserDetail?.rol === 'usuario' && d.creado_por !== req.session.userId) {
+    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
+  }
+
   const seguimiento = db.prepare(`
     SELECT s.*, u.nombre as registrado_por_nombre
     FROM seguimiento s
@@ -381,15 +386,27 @@ router.post('/:id/seguimiento', auth, upload.single('archivo_acuse'), async (req
   const { fecha_entrega, hora_entrega, nombre_recibio, observaciones, lugar, tipo } = req.body;
   const diligencia_id = req.params.id;
 
-  // Notificadores can only add seguimiento to their assigned diligencias
   const currentUser = getUser(req.session.userId);
+
+  // Solo coordinador, notificador y admin pueden registrar seguimiento
+  if (!['admin', 'coordinador', 'notificador'].includes(currentUser?.rol)) {
+    return res.status(403).json({ error: 'Solo el coordinador o el notificador pueden registrar seguimiento' });
+  }
+
+  // Notificadores solo pueden registrar seguimiento en sus diligencias asignadas
   if (currentUser?.rol === 'notificador') {
     const d = db.prepare('SELECT asignado_a FROM diligencias WHERE id = ?').get(diligencia_id);
     if (!d || d.asignado_a !== req.session.userId) {
       return res.status(403).json({ error: 'Solo puedes registrar seguimiento en diligencias asignadas a ti' });
     }
   }
+
   const esFinal = tipo === 'final';
+
+  // La hora es obligatoria en la entrega final
+  if (esFinal && !hora_entrega) {
+    return res.status(400).json({ error: 'La hora de entrega es obligatoria para la entrega final' });
+  }
 
   const archivo = req.file ? `/uploads/${req.file.filename}` : null;
 
