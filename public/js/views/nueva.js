@@ -22,11 +22,11 @@ function renderNueva() {
 
             <div class="field-group">
               <label>Área Requirente <span class="req">*</span></label>
-              ${currentUser?.rol === 'usuario'
-                ? `<input type="text" name="area_requirente" value="${currentUser.area || ''}" readonly style="background:var(--gray-50);cursor:default;" required>`
+              ${currentUser?.rol === 'usuario' && currentUser.area
+                ? `<input type="text" name="area_requirente" value="${currentUser.area}" readonly style="background:var(--gray-50);cursor:default;" required>`
                 : `<select name="area_requirente" required>
                 <option value="">— Seleccionar área —</option>
-                ${AREAS.map(a => `<option value="${a}">${a}</option>`).join('')}
+                ${AREAS.map(a => `<option value="${a}" ${a === currentUser?.area ? 'selected' : ''}>${a}</option>`).join('')}
               </select>`}
             </div>
 
