@@ -388,20 +388,23 @@ router.post('/:id/seguimiento', auth, upload.single('archivo_acuse'), async (req
 
   const currentUser = getUser(req.session.userId);
 
-  // Solo coordinador, notificador y admin pueden registrar seguimiento
-  if (!['admin', 'coordinador', 'notificador'].includes(currentUser?.rol)) {
-    return res.status(403).json({ error: 'Solo el coordinador o el notificador pueden registrar seguimiento' });
-  }
+  const d = db.prepare('SELECT creado_por, asignado_a FROM diligencias WHERE id = ?').get(diligencia_id);
+  if (!d) return res.status(404).json({ error: 'Diligencia no encontrada' });
 
-  // Notificadores solo pueden registrar seguimiento en sus diligencias asignadas
-  if (currentUser?.rol === 'notificador') {
-    const d = db.prepare('SELECT asignado_a FROM diligencias WHERE id = ?').get(diligencia_id);
-    if (!d || d.asignado_a !== req.session.userId) {
-      return res.status(403).json({ error: 'Solo puedes registrar seguimiento en diligencias asignadas a ti' });
-    }
+  // Verificar acceso de visibilidad (mismas reglas que GET /:id)
+  if (currentUser?.rol === 'usuario' && d.creado_por !== req.session.userId) {
+    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
+  }
+  if (currentUser?.rol === 'notificador' && d.asignado_a !== req.session.userId) {
+    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
   }
 
   const esFinal = tipo === 'final';
+
+  // Solo admin/coordinador/notificador pueden hacer el cierre (entrega final)
+  if (esFinal && !['admin', 'coordinador', 'notificador'].includes(currentUser?.rol)) {
+    return res.status(403).json({ error: 'Solo el coordinador o el notificador pueden registrar la entrega final' });
+  }
 
   // La hora es obligatoria en la entrega final
   if (esFinal && !hora_entrega) {

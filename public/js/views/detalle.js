@@ -29,7 +29,7 @@ async function renderDetalle(id) {
                 `<option value="${e}" ${d.estado===e?'selected':''}>${{pendiente:'Pendiente',en_proceso:'En Proceso',entregado:'Entregado',no_entregado:'No Entregado',cancelado:'Cancelado'}[e]}</option>`
             ).join('')}
           </select>` : ''}
-          ${!['entregado','cancelado'].includes(d.estado) && ['admin','coordinador','notificador'].includes(currentUser?.rol) ? `<button class="btn btn-primary" onclick="openSeguimientoModal(${d.id})">📦 Registrar Tramo</button>` : ''}
+          ${!['entregado','cancelado'].includes(d.estado) ? `<button class="btn btn-primary" onclick="openSeguimientoModal(${d.id})">📦 Registrar Tramo</button>` : ''}
         </div>
       </div>
 
@@ -90,7 +90,7 @@ async function renderDetalle(id) {
           <div class="card">
             <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
               <h3>Historial de Seguimiento</h3>
-              ${!['entregado','cancelado'].includes(d.estado) && ['admin','coordinador','notificador'].includes(currentUser?.rol) ? `<button class="btn btn-primary btn-sm" onclick="openSeguimientoModal(${d.id})">📦 Registrar Tramo</button>` : ''}
+              ${!['entregado','cancelado'].includes(d.estado) ? `<button class="btn btn-primary btn-sm" onclick="openSeguimientoModal(${d.id})">📦 Registrar Tramo</button>` : ''}
             </div>
             <div class="card-body">
               ${buildHistorial(d.seguimiento)}
@@ -211,13 +211,14 @@ function openSeguimientoModal(id, preCheckFinal = false) {
           </div>
           <input type="file" id="acuse-file" accept=".pdf" style="display:none" onchange="fileSelected(this)">
         </div>
+        ${['admin','coordinador','notificador'].includes(currentUser?.rol) ? `
         <div class="field-group full-width" style="background:var(--green-light);border-radius:var(--radius-sm);padding:12px;border:1px solid rgba(5,150,105,.25);">
           <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;color:var(--success);">
             <input type="checkbox" id="es-entrega-final" onchange="toggleEntregaFinal(this)" style="width:16px;height:16px;cursor:pointer;">
             ✅ Marcar como entrega final al destinatario
           </label>
           <div style="font-size:12px;color:var(--gray-500);margin-top:4px;margin-left:26px;">Al activar esta opción, el estado cambiará a "Entregado"</div>
-        </div>
+        </div>` : '<input type="hidden" id="es-entrega-final-hidden">'}
       </div>
       <div id="seg-error" class="alert alert-error" style="display:none;margin-top:16px;"></div>
       <div class="btn-group" style="margin-top:20px;justify-content:flex-end;">
@@ -237,7 +238,7 @@ function openSeguimientoModal(id, preCheckFinal = false) {
     const errEl = document.getElementById('seg-error');
     errEl.style.display = 'none';
     const fd = new FormData(e.target);
-    const esFinal = document.getElementById('es-entrega-final').checked;
+    const esFinal = document.getElementById('es-entrega-final')?.checked || false;
     if (esFinal && !fd.get('hora_entrega')) {
       errEl.textContent = 'La hora de entrega es obligatoria para la entrega final';
       errEl.style.display = 'block';
