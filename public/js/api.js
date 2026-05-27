@@ -108,6 +108,7 @@ const ESTADOS_MX = [
 
 const AREAS = [
   'Coordinación de Análisis de Información y Control Documental',
+  'Coordinación Administrativa',
   'Dirección de Instrucción Recursal',
   'Dirección de Servicios Legales',
   'Dirección de Asuntos Laborales',
