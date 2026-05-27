@@ -373,7 +373,7 @@ async function openEditarModal(id) {
         </div>
         <div class="field-group">
           <label>ID SAI</label>
-          <input type="number" name="id_sai" value="${d.id_sai || ''}" min="0" step="1" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+          <input type="text" name="id_sai" value="${d.id_sai || ''}" inputmode="numeric" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
         </div>
         <div class="field-group full-width">
           <label>Autoridad / Institución <span class="req">*</span></label>
@@ -400,7 +400,7 @@ async function openEditarModal(id) {
         </div>
         <div class="field-group">
           <label>Código Postal</label>
-          <input type="text" name="autoridad_cp" value="${d.autoridad_cp || ''}">
+          <input type="text" name="autoridad_cp" value="${d.autoridad_cp || ''}" inputmode="numeric" maxlength="5" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
         </div>
         <div class="field-group full-width">
           <label>Referencias</label>

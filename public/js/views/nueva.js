@@ -49,8 +49,8 @@ function renderNueva() {
 
             <div class="field-group">
               <label>ID SAI</label>
-              <input type="number" name="id_sai" placeholder="Número de expediente SAI"
-                min="0" step="1" inputmode="numeric"
+              <input type="text" name="id_sai" placeholder="Número de expediente SAI"
+                inputmode="numeric" maxlength="10"
                 oninput="this.value=this.value.replace(/[^0-9]/g,'')">
             </div>
 
@@ -88,7 +88,9 @@ function renderNueva() {
 
             <div class="field-group">
               <label>Código Postal</label>
-              <input type="text" name="autoridad_cp" placeholder="C.P.">
+              <input type="text" name="autoridad_cp" placeholder="C.P."
+                inputmode="numeric" maxlength="5"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'')">
             </div>
 
             <div class="field-group full-width">

@@ -72,7 +72,9 @@ function formatDatetime(d) {
 }
 function daysUntil(dateStr) {
   if (!dateStr) return null;
-  const d = new Date(dateStr + 'T00:00:00');
+  const dateOnly = String(dateStr).split('T')[0].split(' ')[0];
+  const d = new Date(dateOnly + 'T00:00:00');
+  if (isNaN(d.getTime())) return null;
   const today = new Date(); today.setHours(0,0,0,0);
   return Math.ceil((d - today) / 86400000);
 }
@@ -81,7 +83,7 @@ function terminoBadge(d) {
   if (d.estado === 'entregado') return `<span class="termino-badge termino-ok">✅ Cumplido</span>`;
   const days = daysUntil(d.termino_fecha);
   if (days === null) return '';
-  if (days < 0) return `<span class="termino-badge termino-vence-hoy">⚠ Vencido</span>`;
+  if (days < 0) return `<span class="termino-badge termino-vencida">⚠ Vencida</span>`;
   if (days === 0) return `<span class="termino-badge termino-vence-hoy">🔴 Vence hoy</span>`;
   if (days <= 3) return `<span class="termino-badge termino-proximo">⏰ ${days}d restantes</span>`;
   return `<span class="termino-badge termino-ok">📅 ${formatDate(d.termino_fecha)}</span>`;

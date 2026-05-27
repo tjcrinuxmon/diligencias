@@ -174,6 +174,10 @@ router.post('/', auth, (req, res) => {
   if (id_sai && !/^\d+$/.test(String(id_sai).trim())) {
     return res.status(400).json({ error: 'El ID SAI debe ser un valor numérico' });
   }
+  const existing = db.prepare('SELECT folio FROM diligencias WHERE numero_oficio = ?').get(numero_oficio.trim());
+  if (existing) {
+    return res.status(409).json({ error: `El número de oficio ya está registrado en la diligencia ${existing.folio}` });
+  }
 
   const folio = generateFolio();
   const conAnexos = tiene_anexos === true || tiene_anexos === 'true' || tiene_anexos === 1 || tiene_anexos === '1';
@@ -259,6 +263,10 @@ router.put('/:id', auth, (req, res) => {
   if (!area_requirente || !numero_oficio || !autoridad_nombre || !autoridad_domicilio) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
+  const dupEdit = db.prepare('SELECT folio FROM diligencias WHERE numero_oficio = ? AND id != ?').get(numero_oficio.trim(), req.params.id);
+  if (dupEdit) {
+    return res.status(409).json({ error: `El número de oficio ya está registrado en la diligencia ${dupEdit.folio}` });
+  }
 
   const conTermino = tiene_termino_legal === true || tiene_termino_legal === 'true' || tiene_termino_legal === 1 || tiene_termino_legal === '1' || tiene_termino_legal === 'on';
 
@@ -288,12 +296,15 @@ router.put('/:id', auth, (req, res) => {
   res.json({ ok: true });
 });
 
-// DELETE diligencia (solo el creador)
+// DELETE diligencia (solo el creador, y solo si no está entregada o cancelada)
 router.delete('/:id', auth, (req, res) => {
-  const d = db.prepare('SELECT creado_por FROM diligencias WHERE id = ?').get(req.params.id);
+  const d = db.prepare('SELECT creado_por, estado FROM diligencias WHERE id = ?').get(req.params.id);
   if (!d) return res.status(404).json({ error: 'No encontrada' });
   if (d.creado_por !== req.session.userId) {
     return res.status(403).json({ error: 'Solo el creador puede eliminar esta diligencia' });
+  }
+  if (['entregado', 'cancelado'].includes(d.estado)) {
+    return res.status(403).json({ error: 'No se puede eliminar una diligencia que ya fue entregada o cancelada' });
   }
 
   // Delete physical files
