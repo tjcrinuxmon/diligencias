@@ -5,6 +5,7 @@ async function renderDetalle(id) {
     const d = await API.get(`/diligencias/${id}`);
     const days = daysUntil(d.termino_fecha);
     const tieneFinal = d.seguimiento.some(s => s.tipo === 'final');
+    const seguimientoFinal = d.seguimiento.find(s => s.tipo === 'final');
 
     el.innerHTML = `
       <div class="page-header">
@@ -148,6 +149,20 @@ async function renderDetalle(id) {
               <div style="font-size:48px;margin-bottom:8px;">${{pendiente:'⏳',en_proceso:'🔄',entregado:'✅',no_entregado:'❌',cancelado:'🚫'}[d.estado]}</div>
               ${estadoBadge(d.estado)}
               <div style="font-size:12px;color:var(--gray-500);margin-top:8px;">${formatDatetime(d.updated_at)}</div>
+              ${seguimientoFinal ? `
+              <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--gray-100);text-align:left;">
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin-bottom:8px;">Entrega final</div>
+                <div style="font-size:13px;color:var(--gray-600);margin-bottom:2px;">
+                  📅 ${formatDate(seguimientoFinal.fecha_entrega)}${seguimientoFinal.hora_entrega ? ' · ' + seguimientoFinal.hora_entrega : ''}
+                </div>
+                ${seguimientoFinal.nombre_recibio ? `<div style="font-size:13px;color:var(--gray-600);margin-bottom:8px;">👤 ${seguimientoFinal.nombre_recibio}</div>` : ''}
+                ${seguimientoFinal.archivo_acuse
+                  ? `<a href="/api/dil${seguimientoFinal.archivo_acuse}" target="_blank" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:4px;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      Ver Acuse de Entrega
+                    </a>`
+                  : '<div style="font-size:12px;color:var(--gray-400);margin-top:4px;">Sin acuse adjunto</div>'}
+              </div>` : ''}
             </div>
           </div>
         </div>
