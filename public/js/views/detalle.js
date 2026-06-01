@@ -524,9 +524,53 @@ async function openEditarModal(id) {
           </div>
         </div>
 
-        <div class="section-divider full-width"><h4>Instrucciones Adicionales</h4></div>
+        <div class="section-divider full-width"><h4>Instrucciones para el Notificador</h4></div>
         <div class="field-group full-width">
-          <textarea name="instrucciones_adicionales" placeholder="Indicaciones especiales para el notificador..." style="min-height:80px;">${d.instrucciones_adicionales || ''}</textarea>
+          <label>Instrucciones adicionales</label>
+          <textarea name="instrucciones_adicionales" placeholder="Indicaciones especiales, horarios de atención, persona a quien dirigirse, etc." style="min-height:80px;">${d.instrucciones_adicionales || ''}</textarea>
+        </div>
+
+        <div class="section-divider full-width"><h4>Número de tantos a imprimir</h4></div>
+        <div class="field-group full-width">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <label for="edit-cb-tantos-original" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;min-width:200px;">
+                <input type="checkbox" id="edit-cb-tantos-original" ${(d.tantos_original > 0) ? 'checked' : ''} onchange="editToggleTanto('original')">
+                <span>Original</span>
+              </label>
+              <input type="number" id="edit-input-tantos-original" min="1" max="99" value="${d.tantos_original || 1}"
+                style="display:${(d.tantos_original > 0) ? 'inline-block' : 'none'};width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <label for="edit-cb-tantos-acuse" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;min-width:200px;">
+                <input type="checkbox" id="edit-cb-tantos-acuse" ${(d.tantos_acuse > 0) ? 'checked' : ''} onchange="editToggleTanto('acuse')">
+                <span>Acuse</span>
+              </label>
+              <input type="number" id="edit-input-tantos-acuse" min="1" max="99" value="${d.tantos_acuse || 1}"
+                style="display:${(d.tantos_acuse > 0) ? 'inline-block' : 'none'};width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <label for="edit-cb-tantos-copias" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;min-width:200px;">
+                <input type="checkbox" id="edit-cb-tantos-copias" ${(d.tantos_copias_conocimiento > 0) ? 'checked' : ''} onchange="editToggleTanto('copias')">
+                <span>Copias conocimiento</span>
+              </label>
+              <input type="number" id="edit-input-tantos-copias" min="1" max="99" value="${d.tantos_copias_conocimiento || 1}"
+                style="display:${(d.tantos_copias_conocimiento > 0) ? 'inline-block' : 'none'};width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <label for="edit-cb-tantos-traslados" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;min-width:200px;">
+                <input type="checkbox" id="edit-cb-tantos-traslados" ${(d.tantos_traslados > 0) ? 'checked' : ''} onchange="editToggleTanto('traslados')">
+                <span>Traslados</span>
+              </label>
+              <input type="number" id="edit-input-tantos-traslados" min="1" max="99" value="${d.tantos_traslados || 1}"
+                style="display:${(d.tantos_traslados > 0) ? 'inline-block' : 'none'};width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
+            </div>
+
+          </div>
         </div>
 
         <div class="section-divider full-width"><h4>Archivos Adjuntos</h4></div>
@@ -596,6 +640,13 @@ async function openEditarModal(id) {
     document.getElementById('edit-termino-fields').style.display = cb.checked ? 'contents' : 'none';
   };
 
+  window.editToggleTanto = (suffix) => {
+    const cb    = document.getElementById(`edit-cb-tantos-${suffix}`);
+    const input = document.getElementById(`edit-input-tantos-${suffix}`);
+    input.style.display = cb.checked ? 'inline-block' : 'none';
+    if (!cb.checked) input.value = '1';
+  };
+
   window.editDocDelete  = (docId) => { editDocsToDelete.add(docId); renderEditDocList(); };
   window.editDocRestore = (docId) => { editDocsToDelete.delete(docId); renderEditDocList(); };
   window.editNewFileRemove = (i) => { editNewFiles.splice(i, 1); renderEditNewFiles(); };
@@ -627,6 +678,13 @@ async function openEditarModal(id) {
     const fd = new FormData(e.target);
     const payload = {};
     for (const [k, v] of fd.entries()) payload[k] = v;
+
+    // Tantos — leer explícitamente para no depender de inputs ocultos
+    const toInt = (id) => { const n = parseInt(document.getElementById(id)?.value, 10); return isNaN(n) || n < 0 ? 1 : n; };
+    payload.tantos_original            = document.getElementById('edit-cb-tantos-original').checked  ? toInt('edit-input-tantos-original')  : 0;
+    payload.tantos_acuse               = document.getElementById('edit-cb-tantos-acuse').checked      ? toInt('edit-input-tantos-acuse')      : 0;
+    payload.tantos_copias_conocimiento = document.getElementById('edit-cb-tantos-copias').checked     ? toInt('edit-input-tantos-copias')     : 0;
+    payload.tantos_traslados           = document.getElementById('edit-cb-tantos-traslados').checked  ? toInt('edit-input-tantos-traslados')  : 0;
 
     try {
       // 1. Save field changes
