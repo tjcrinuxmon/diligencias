@@ -213,37 +213,29 @@ function renderNueva() {
             <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:8px;padding:4px 0;">
 
               <div style="display:flex;align-items:center;gap:10px;">
-                <label for="cb-tantos-original" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;min-width:200px;">
-                  <input type="checkbox" id="cb-tantos-original" onchange="toggleTanto('tantos-original')">
-                  <span>Original</span>
-                </label>
+                <input type="checkbox" id="cb-tantos-original" onchange="toggleTanto('tantos-original')">
+                <label for="cb-tantos-original" style="font-size:13px;cursor:pointer;min-width:180px;text-transform:none;letter-spacing:normal;font-weight:normal;">Original</label>
                 <input type="number" id="input-tantos-original" min="1" max="99" value="1"
                   style="display:none;width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
               </div>
 
               <div style="display:flex;align-items:center;gap:10px;">
-                <label for="cb-tantos-acuse" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;min-width:200px;">
-                  <input type="checkbox" id="cb-tantos-acuse" onchange="toggleTanto('tantos-acuse')">
-                  <span>Acuse</span>
-                </label>
+                <input type="checkbox" id="cb-tantos-acuse" onchange="toggleTanto('tantos-acuse')">
+                <label for="cb-tantos-acuse" style="font-size:13px;cursor:pointer;min-width:180px;text-transform:none;letter-spacing:normal;font-weight:normal;">Acuse</label>
                 <input type="number" id="input-tantos-acuse" min="1" max="99" value="1"
                   style="display:none;width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
               </div>
 
               <div style="display:flex;align-items:center;gap:10px;">
-                <label for="cb-tantos-copias" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;min-width:200px;">
-                  <input type="checkbox" id="cb-tantos-copias" onchange="toggleTanto('tantos-copias')">
-                  <span>Copias conocimiento</span>
-                </label>
+                <input type="checkbox" id="cb-tantos-copias" onchange="toggleTanto('tantos-copias')">
+                <label for="cb-tantos-copias" style="font-size:13px;cursor:pointer;min-width:180px;text-transform:none;letter-spacing:normal;font-weight:normal;">Copias conocimiento</label>
                 <input type="number" id="input-tantos-copias" min="1" max="99" value="1"
                   style="display:none;width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
               </div>
 
               <div style="display:flex;align-items:center;gap:10px;">
-                <label for="cb-tantos-traslados" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;min-width:200px;">
-                  <input type="checkbox" id="cb-tantos-traslados" onchange="toggleTanto('tantos-traslados')">
-                  <span>Traslados</span>
-                </label>
+                <input type="checkbox" id="cb-tantos-traslados" onchange="toggleTanto('tantos-traslados')">
+                <label for="cb-tantos-traslados" style="font-size:13px;cursor:pointer;min-width:180px;text-transform:none;letter-spacing:normal;font-weight:normal;">Traslados</label>
                 <input type="number" id="input-tantos-traslados" min="1" max="99" value="1"
                   style="display:none;width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
               </div>
