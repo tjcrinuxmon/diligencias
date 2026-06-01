@@ -212,33 +212,41 @@ function renderNueva() {
 
             <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:8px;padding:4px 0;">
 
-              <label style="display:inline-flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;width:fit-content;">
-                <input type="checkbox" id="cb-tantos-original" onchange="toggleTanto('tantos-original')">
-                <span style="width:180px;">Original</span>
-                <input type="number" id="input-tantos-original" name="tantos_original" min="1" max="99" value="1"
+              <div style="display:flex;align-items:center;gap:10px;">
+                <label for="cb-tantos-original" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;min-width:200px;">
+                  <input type="checkbox" id="cb-tantos-original" onchange="toggleTanto('tantos-original')">
+                  <span>Original</span>
+                </label>
+                <input type="number" id="input-tantos-original" min="1" max="99" value="1"
                   style="display:none;width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
-              </label>
+              </div>
 
-              <label style="display:inline-flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;width:fit-content;">
-                <input type="checkbox" id="cb-tantos-acuse" onchange="toggleTanto('tantos-acuse')">
-                <span style="width:180px;">Acuse</span>
-                <input type="number" id="input-tantos-acuse" name="tantos_acuse" min="1" max="99" value="1"
+              <div style="display:flex;align-items:center;gap:10px;">
+                <label for="cb-tantos-acuse" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;min-width:200px;">
+                  <input type="checkbox" id="cb-tantos-acuse" onchange="toggleTanto('tantos-acuse')">
+                  <span>Acuse</span>
+                </label>
+                <input type="number" id="input-tantos-acuse" min="1" max="99" value="1"
                   style="display:none;width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
-              </label>
+              </div>
 
-              <label style="display:inline-flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;width:fit-content;">
-                <input type="checkbox" id="cb-tantos-copias" onchange="toggleTanto('tantos-copias')">
-                <span style="width:180px;">Copias conocimiento</span>
-                <input type="number" id="input-tantos-copias" name="tantos_copias_conocimiento" min="1" max="99" value="1"
+              <div style="display:flex;align-items:center;gap:10px;">
+                <label for="cb-tantos-copias" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;min-width:200px;">
+                  <input type="checkbox" id="cb-tantos-copias" onchange="toggleTanto('tantos-copias')">
+                  <span>Copias conocimiento</span>
+                </label>
+                <input type="number" id="input-tantos-copias" min="1" max="99" value="1"
                   style="display:none;width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
-              </label>
+              </div>
 
-              <label style="display:inline-flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;width:fit-content;">
-                <input type="checkbox" id="cb-tantos-traslados" onchange="toggleTanto('tantos-traslados')">
-                <span style="width:180px;">Traslados</span>
-                <input type="number" id="input-tantos-traslados" name="tantos_traslados" min="1" max="99" value="1"
+              <div style="display:flex;align-items:center;gap:10px;">
+                <label for="cb-tantos-traslados" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;min-width:200px;">
+                  <input type="checkbox" id="cb-tantos-traslados" onchange="toggleTanto('tantos-traslados')">
+                  <span>Traslados</span>
+                </label>
+                <input type="number" id="input-tantos-traslados" min="1" max="99" value="1"
                   style="display:none;width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
-              </label>
+              </div>
 
             </div>
 
@@ -411,18 +419,18 @@ async function submitNueva(e) {
   }
   payload.tiene_anexos        = document.getElementById('toggle-anexos').checked;
   payload.tiene_termino_legal = document.getElementById('toggle-termino').checked;
+  // tantos a imprimir — siempre recolectados, independientes del toggle de actividades
+  payload.tantos_original            = document.getElementById('cb-tantos-original').checked  ? parseInt(document.getElementById('input-tantos-original').value)  || 1 : 0;
+  payload.tantos_acuse               = document.getElementById('cb-tantos-acuse').checked      ? parseInt(document.getElementById('input-tantos-acuse').value)      || 1 : 0;
+  payload.tantos_copias_conocimiento = document.getElementById('cb-tantos-copias').checked     ? parseInt(document.getElementById('input-tantos-copias').value)     || 1 : 0;
+  payload.tantos_traslados           = document.getElementById('cb-tantos-traslados').checked  ? parseInt(document.getElementById('input-tantos-traslados').value)  || 1 : 0;
+
   if (payload.tiene_anexos) {
     payload.anexo_firma_deaj  = document.getElementById('cb-firma-deaj').checked;
     payload.anexo_imprimir    = document.getElementById('cb-imprimir').checked;
-payload.anexo_digitalizar = document.getElementById('cb-digitalizar').checked;
+    payload.anexo_digitalizar = document.getElementById('cb-digitalizar').checked;
     payload.anexo_quemar_cd   = document.getElementById('cb-quemar-cd').checked;
     payload.anexo_usb         = document.getElementById('cb-usb').checked;
-    // tantos a imprimir
-    payload.tantos_original             = document.getElementById('cb-tantos-original').checked   ? parseInt(document.getElementById('input-tantos-original').value)   || 0 : 0;
-    payload.tantos_acuse                = document.getElementById('cb-tantos-acuse').checked       ? parseInt(document.getElementById('input-tantos-acuse').value)       || 0 : 0;
-    payload.tantos_copias_conocimiento  = document.getElementById('cb-tantos-copias').checked      ? parseInt(document.getElementById('input-tantos-copias').value)      || 0 : 0;
-    payload.tantos_traslados            = document.getElementById('cb-tantos-traslados').checked   ? parseInt(document.getElementById('input-tantos-traslados').value)   || 0 : 0;
-
     const sobreEl = document.querySelector('input[name="anexo_sobre_cerrado"]:checked');
     payload.anexo_sobre_cerrado = sobreEl ? sobreEl.value : null;
     const otroEl = document.getElementById('input-otro');
