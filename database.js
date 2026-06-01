@@ -94,6 +94,19 @@ db.exec(`
 try { db.exec(`ALTER TABLE seguimiento ADD COLUMN tipo TEXT NOT NULL DEFAULT 'final'`); } catch (_) {}
 try { db.exec(`ALTER TABLE seguimiento ADD COLUMN lugar TEXT`); } catch (_) {}
 try { db.exec(`ALTER TABLE diligencias ADD COLUMN instrucciones_adicionales TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN anexo_firma_deaj INTEGER DEFAULT 0`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN anexo_imprimir INTEGER DEFAULT 0`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN anexo_imprimir_hoja_verde INTEGER DEFAULT 0`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN anexo_certificar INTEGER DEFAULT 0`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN anexo_digitalizar INTEGER DEFAULT 0`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN anexo_quemar_cd INTEGER DEFAULT 0`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN anexo_usb INTEGER DEFAULT 0`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN anexo_sobre_cerrado TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN anexo_otro TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN tantos_original INTEGER DEFAULT 0`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN tantos_acuse INTEGER DEFAULT 0`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN tantos_copias_conocimiento INTEGER DEFAULT 0`); } catch (_) {}
+try { db.exec(`ALTER TABLE diligencias ADD COLUMN tantos_traslados INTEGER DEFAULT 0`); } catch (_) {}
 
 // Migration: add 'coordinador' role to CHECK constraint
 try {

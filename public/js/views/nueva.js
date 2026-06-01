@@ -31,11 +31,59 @@ function renderNueva() {
             </div>
 
             <div class="toggle-row">
-              <label for="toggle-anexos">¿Incluye Anexos?</label>
+              <label for="toggle-anexos">Actividades a realizar en la notificación</label>
               <label class="toggle">
-                <input type="checkbox" id="toggle-anexos" name="tiene_anexos">
+                <input type="checkbox" id="toggle-anexos" name="tiene_anexos" onchange="toggleAnexos(this)">
                 <span class="toggle-slider"></span>
               </label>
+            </div>
+
+            <div id="anexos-fields" style="display:none; grid-column:1/-1;">
+              <div style="border:1.5px solid var(--blue-light,#bfdbfe);border-radius:6px;padding:14px 18px;background:#f0f9ff;display:flex;flex-direction:column;gap:8px;">
+                <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#1d4ed8;text-transform:uppercase;letter-spacing:.5px;">Actividades a realizar</p>
+
+                <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer;">
+                  <input type="checkbox" id="cb-firma-deaj" name="anexo_firma_deaj" style="margin-top:2px;flex-shrink:0;">
+                  <span><u><strong>Recabar firma autógrafa del DEAJ</strong></u> (hoja verde)</span>
+                </label>
+
+                <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer;">
+                  <input type="checkbox" id="cb-imprimir" name="anexo_imprimir" style="margin-top:2px;flex-shrink:0;">
+                  <span><strong>Imprimir anexo</strong></span>
+                </label>
+
+<label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer;">
+                  <input type="checkbox" id="cb-digitalizar" name="anexo_digitalizar" style="margin-top:2px;flex-shrink:0;">
+                  <span>Digitalizar</span>
+                </label>
+
+                <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer;">
+                  <input type="checkbox" id="cb-quemar-cd" name="anexo_quemar_cd" style="margin-top:2px;flex-shrink:0;">
+                  <span>Quemar CD</span>
+                </label>
+
+                <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer;">
+                  <input type="checkbox" id="cb-usb" name="anexo_usb" style="margin-top:2px;flex-shrink:0;">
+                  <span>USB</span>
+                </label>
+
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                  <span>Guardar en sobre cerrado:</span>
+                  <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+                    <input type="radio" name="anexo_sobre_cerrado" value="SI"> SI
+                  </label>
+                  <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+                    <input type="radio" name="anexo_sobre_cerrado" value="NO"> NO
+                  </label>
+                </div>
+
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                  <input type="checkbox" id="cb-otro" onchange="toggleAnexoOtro(this)" style="flex-shrink:0;">
+                  <span>Otro:</span>
+                  <input type="text" id="input-otro" name="anexo_otro" placeholder="Especificar…"
+                    style="display:none;flex:1;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;">
+                </label>
+              </div>
             </div>
 
             <div class="section-divider">
@@ -159,6 +207,42 @@ function renderNueva() {
             </div>
 
             <div class="section-divider">
+              <h4>Número de tantos a imprimir</h4>
+            </div>
+
+            <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:8px;padding:4px 0;">
+
+              <label style="display:inline-flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;width:fit-content;">
+                <input type="checkbox" id="cb-tantos-original" onchange="toggleTanto('tantos-original')">
+                <span style="width:180px;">Original</span>
+                <input type="number" id="input-tantos-original" name="tantos_original" min="1" max="99" value="1"
+                  style="display:none;width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
+              </label>
+
+              <label style="display:inline-flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;width:fit-content;">
+                <input type="checkbox" id="cb-tantos-acuse" onchange="toggleTanto('tantos-acuse')">
+                <span style="width:180px;">Acuse</span>
+                <input type="number" id="input-tantos-acuse" name="tantos_acuse" min="1" max="99" value="1"
+                  style="display:none;width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
+              </label>
+
+              <label style="display:inline-flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;width:fit-content;">
+                <input type="checkbox" id="cb-tantos-copias" onchange="toggleTanto('tantos-copias')">
+                <span style="width:180px;">Copias conocimiento</span>
+                <input type="number" id="input-tantos-copias" name="tantos_copias_conocimiento" min="1" max="99" value="1"
+                  style="display:none;width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
+              </label>
+
+              <label style="display:inline-flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;width:fit-content;">
+                <input type="checkbox" id="cb-tantos-traslados" onchange="toggleTanto('tantos-traslados')">
+                <span style="width:180px;">Traslados</span>
+                <input type="number" id="input-tantos-traslados" name="tantos_traslados" min="1" max="99" value="1"
+                  style="display:none;width:70px;height:28px;font-size:13px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;text-align:center;">
+              </label>
+
+            </div>
+
+            <div class="section-divider">
               <h4>Archivos Adjuntos</h4>
             </div>
 
@@ -208,6 +292,34 @@ function renderNueva() {
 function toggleTermino(checkbox) {
   const fields = document.getElementById('termino-fields');
   fields.style.display = checkbox.checked ? 'contents' : 'none';
+}
+
+function toggleAnexos(checkbox) {
+  const fields = document.getElementById('anexos-fields');
+  fields.style.display = checkbox.checked ? '' : 'none';
+  if (!checkbox.checked) {
+    ['cb-firma-deaj','cb-imprimir','cb-digitalizar','cb-quemar-cd','cb-usb','cb-otro'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = false;
+    });
+    document.querySelectorAll('input[name="anexo_sobre_cerrado"]').forEach(r => r.checked = false);
+    const otroInput = document.getElementById('input-otro');
+    if (otroInput) { otroInput.value = ''; otroInput.style.display = 'none'; }
+  }
+}
+
+
+function toggleTanto(key) {
+  const cb = document.getElementById(`cb-${key}`);
+  const input = document.getElementById(`input-${key}`);
+  input.style.display = cb.checked ? 'inline-block' : 'none';
+  if (!cb.checked) input.value = '1';
+}
+
+function toggleAnexoOtro(checkbox) {
+  const input = document.getElementById('input-otro');
+  input.style.display = checkbox.checked ? 'inline-block' : 'none';
+  if (!checkbox.checked) input.value = '';
 }
 
 /* ── Dropzone ── */
@@ -297,8 +409,25 @@ async function submitNueva(e) {
     if (key === 'documentos') continue; // files handled separately
     payload[key] = val;
   }
-  payload.tiene_anexos       = document.getElementById('toggle-anexos').checked;
+  payload.tiene_anexos        = document.getElementById('toggle-anexos').checked;
   payload.tiene_termino_legal = document.getElementById('toggle-termino').checked;
+  if (payload.tiene_anexos) {
+    payload.anexo_firma_deaj  = document.getElementById('cb-firma-deaj').checked;
+    payload.anexo_imprimir    = document.getElementById('cb-imprimir').checked;
+payload.anexo_digitalizar = document.getElementById('cb-digitalizar').checked;
+    payload.anexo_quemar_cd   = document.getElementById('cb-quemar-cd').checked;
+    payload.anexo_usb         = document.getElementById('cb-usb').checked;
+    // tantos a imprimir
+    payload.tantos_original             = document.getElementById('cb-tantos-original').checked   ? parseInt(document.getElementById('input-tantos-original').value)   || 0 : 0;
+    payload.tantos_acuse                = document.getElementById('cb-tantos-acuse').checked       ? parseInt(document.getElementById('input-tantos-acuse').value)       || 0 : 0;
+    payload.tantos_copias_conocimiento  = document.getElementById('cb-tantos-copias').checked      ? parseInt(document.getElementById('input-tantos-copias').value)      || 0 : 0;
+    payload.tantos_traslados            = document.getElementById('cb-tantos-traslados').checked   ? parseInt(document.getElementById('input-tantos-traslados').value)   || 0 : 0;
+
+    const sobreEl = document.querySelector('input[name="anexo_sobre_cerrado"]:checked');
+    payload.anexo_sobre_cerrado = sobreEl ? sobreEl.value : null;
+    const otroEl = document.getElementById('input-otro');
+    payload.anexo_otro = otroEl.style.display !== 'none' ? otroEl.value.trim() || null : null;
+  }
 
   try {
     // Step 1: create diligencia via JSON

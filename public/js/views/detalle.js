@@ -51,6 +51,63 @@ async function renderDetalle(id) {
             </div>
           </div>
 
+          <!-- Anexos checklist -->
+          ${d.tiene_anexos ? `
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><h3>📋 Actividades a realizar</h3></div>
+            <div class="card-body">
+              <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+                ${[
+                  [d.anexo_firma_deaj, '<u><strong>Recabar firma autógrafa del DEAJ</strong></u> (hoja verde)'],
+                  [d.anexo_imprimir,   '<strong>Imprimir anexo</strong>'],
+[d.anexo_digitalizar,'Digitalizar'],
+                  [d.anexo_quemar_cd,  'Quemar CD'],
+                  [d.anexo_usb,        'USB'],
+                ].map(([val, label]) => `
+                  <div style="display:flex;align-items:flex-start;gap:8px;">
+                    <span style="flex-shrink:0;font-size:15px;">${val ? '☑' : '☐'}</span>
+                    <span style="color:${val ? 'inherit' : '#9ca3af'}">${label}</span>
+                  </div>`).join('')}
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="flex-shrink:0;font-size:15px;">${d.anexo_sobre_cerrado ? '☑' : '☐'}</span>
+                  <span>Guardar en sobre cerrado:
+                    <strong style="margin-left:6px;">${d.anexo_sobre_cerrado ? d.anexo_sobre_cerrado : '—'}</strong>
+                  </span>
+                </div>
+                ${d.anexo_otro ? `
+                <div style="display:flex;align-items:flex-start;gap:8px;">
+                  <span style="flex-shrink:0;font-size:15px;">☑</span>
+                  <span>Otro: <strong>${d.anexo_otro}</strong></span>
+                </div>` : ''}
+              </div>
+            </div>
+          </div>` : ''}
+
+          <!-- Tantos a imprimir -->
+          ${(d.tantos_original || d.tantos_acuse || d.tantos_copias_conocimiento || d.tantos_traslados) ? `
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><h3>🖨️ Número de tantos a imprimir</h3></div>
+            <div class="card-body">
+              <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+                ${[
+                  [d.tantos_original,            'Original'],
+                  [d.tantos_acuse,               'Acuse'],
+                  [d.tantos_copias_conocimiento, 'Copias conocimiento'],
+                  [d.tantos_traslados,           'Traslados'],
+                ].map(([val, label]) => val > 0 ? `
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:15px;">☑</span>
+                    <span style="min-width:160px;">${label}</span>
+                    <strong>${val}</strong>
+                  </div>` : `
+                  <div style="display:flex;align-items:center;gap:10px;color:#9ca3af;">
+                    <span style="font-size:15px;">☐</span>
+                    <span>${label}</span>
+                  </div>`).join('')}
+              </div>
+            </div>
+          </div>` : ''}
+
           <!-- Documentos adjuntos -->
           ${d.documentos && d.documentos.length > 0 ? `
           <div class="card" style="margin-bottom:20px;">

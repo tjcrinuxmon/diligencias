@@ -170,8 +170,11 @@ router.post('/', auth, (req, res) => {
     autoridad_municipio, autoridad_estado, autoridad_cp, autoridad_referencia,
     tiene_termino_legal, termino_fecha, termino_hora, termino_observaciones,
     contacto_nombre, contacto_email, contacto_telefono, asignado_a,
-    instrucciones_adicionales
+    instrucciones_adicionales,
+    anexo_firma_deaj, anexo_imprimir, anexo_imprimir_hoja_verde,
+    anexo_digitalizar, anexo_quemar_cd, anexo_usb, anexo_sobre_cerrado, anexo_otro
   } = req.body;
+  const toBool = v => v === true || v === 'true' || v === 1 || v === '1' || v === 'on';
 
   if (!area_requirente || !numero_oficio || !autoridad_nombre || !autoridad_domicilio) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
@@ -195,8 +198,11 @@ router.post('/', auth, (req, res) => {
       autoridad_municipio, autoridad_estado, autoridad_cp, autoridad_referencia,
       tiene_termino_legal, termino_fecha, termino_hora, termino_observaciones,
       contacto_nombre, contacto_email, contacto_telefono,
-      instrucciones_adicionales, creado_por, asignado_a
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      instrucciones_adicionales, creado_por, asignado_a,
+      anexo_firma_deaj, anexo_imprimir, anexo_imprimir_hoja_verde,
+      anexo_digitalizar, anexo_quemar_cd, anexo_usb, anexo_sobre_cerrado, anexo_otro,
+      tantos_original, tantos_acuse, tantos_copias_conocimiento, tantos_traslados
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(
     folio, area_requirente, conAnexos ? 1 : 0, numero_oficio, id_sai || null,
     autoridad_nombre, autoridad_domicilio, autoridad_colonia || null,
@@ -206,7 +212,17 @@ router.post('/', auth, (req, res) => {
     conTermino ? (termino_hora || null) : null,
     conTermino ? (termino_observaciones || null) : null,
     contacto_nombre || null, contacto_email || null, contacto_telefono || null,
-    instrucciones_adicionales || null, req.session.userId, asignado_a || null
+    instrucciones_adicionales || null, req.session.userId, asignado_a || null,
+    conAnexos ? (toBool(anexo_firma_deaj) ? 1 : 0) : 0,
+    conAnexos ? (toBool(anexo_imprimir) ? 1 : 0) : 0,
+    conAnexos ? (toBool(anexo_imprimir_hoja_verde) ? 1 : 0) : 0,
+    conAnexos ? (toBool(anexo_digitalizar) ? 1 : 0) : 0,
+    conAnexos ? (toBool(anexo_quemar_cd) ? 1 : 0) : 0,
+    conAnexos ? (toBool(anexo_usb) ? 1 : 0) : 0,
+    conAnexos ? (anexo_sobre_cerrado || null) : null,
+    conAnexos ? (anexo_otro || null) : null,
+    toInt(tantos_original), toInt(tantos_acuse),
+    toInt(tantos_copias_conocimiento), toInt(tantos_traslados)
   );
 
   const nueva = db.prepare('SELECT * FROM diligencias WHERE id = ?').get(result.lastInsertRowid);
@@ -258,12 +274,18 @@ router.put('/:id', auth, (req, res) => {
   }
 
   const {
-    area_requirente, numero_oficio, id_sai,
+    area_requirente, tiene_anexos, numero_oficio, id_sai,
     autoridad_nombre, autoridad_domicilio, autoridad_colonia,
     autoridad_municipio, autoridad_estado, autoridad_cp, autoridad_referencia,
     tiene_termino_legal, termino_fecha, termino_hora, termino_observaciones,
-    contacto_nombre, contacto_email, contacto_telefono, instrucciones_adicionales
+    contacto_nombre, contacto_email, contacto_telefono, instrucciones_adicionales,
+    anexo_firma_deaj, anexo_imprimir, anexo_imprimir_hoja_verde,
+    anexo_digitalizar, anexo_quemar_cd, anexo_usb, anexo_sobre_cerrado, anexo_otro,
+    tantos_original, tantos_acuse, tantos_copias_conocimiento, tantos_traslados
   } = req.body;
+  const toBool = v => v === true || v === 'true' || v === 1 || v === '1' || v === 'on';
+  const toInt  = v => { const n = parseInt(v, 10); return isNaN(n) || n < 0 ? 0 : n; };
+  const conAnexosPut = toBool(tiene_anexos);
 
   if (!area_requirente || !numero_oficio || !autoridad_nombre || !autoridad_domicilio) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
@@ -277,16 +299,19 @@ router.put('/:id', auth, (req, res) => {
 
   db.prepare(`
     UPDATE diligencias SET
-      area_requirente=?, numero_oficio=?, id_sai=?,
+      area_requirente=?, tiene_anexos=?, numero_oficio=?, id_sai=?,
       autoridad_nombre=?, autoridad_domicilio=?, autoridad_colonia=?,
       autoridad_municipio=?, autoridad_estado=?, autoridad_cp=?, autoridad_referencia=?,
       tiene_termino_legal=?, termino_fecha=?, termino_hora=?, termino_observaciones=?,
       contacto_nombre=?, contacto_email=?, contacto_telefono=?,
       instrucciones_adicionales=?,
+      anexo_firma_deaj=?, anexo_imprimir=?, anexo_imprimir_hoja_verde=?, anexo_digitalizar=?,
+      anexo_quemar_cd=?, anexo_usb=?, anexo_sobre_cerrado=?, anexo_otro=?,
+      tantos_original=?, tantos_acuse=?, tantos_copias_conocimiento=?, tantos_traslados=?,
       updated_at=datetime('now','localtime')
     WHERE id=?
   `).run(
-    area_requirente, numero_oficio, id_sai || null,
+    area_requirente, conAnexosPut ? 1 : 0, numero_oficio, id_sai || null,
     autoridad_nombre, autoridad_domicilio, autoridad_colonia || null,
     autoridad_municipio || null, autoridad_estado || null, autoridad_cp || null, autoridad_referencia || null,
     conTermino ? 1 : 0,
@@ -295,6 +320,16 @@ router.put('/:id', auth, (req, res) => {
     conTermino ? (termino_observaciones || null) : null,
     contacto_nombre || null, contacto_email || null, contacto_telefono || null,
     instrucciones_adicionales || null,
+    conAnexosPut ? (toBool(anexo_firma_deaj) ? 1 : 0) : 0,
+    conAnexosPut ? (toBool(anexo_imprimir) ? 1 : 0) : 0,
+    conAnexosPut ? (toBool(anexo_imprimir_hoja_verde) ? 1 : 0) : 0,
+    conAnexosPut ? (toBool(anexo_digitalizar) ? 1 : 0) : 0,
+    conAnexosPut ? (toBool(anexo_quemar_cd) ? 1 : 0) : 0,
+    conAnexosPut ? (toBool(anexo_usb) ? 1 : 0) : 0,
+    conAnexosPut ? (anexo_sobre_cerrado || null) : null,
+    conAnexosPut ? (anexo_otro || null) : null,
+    toInt(tantos_original), toInt(tantos_acuse),
+    toInt(tantos_copias_conocimiento), toInt(tantos_traslados),
     req.params.id
   );
 
