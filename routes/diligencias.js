@@ -172,9 +172,11 @@ router.post('/', auth, (req, res) => {
     contacto_nombre, contacto_email, contacto_telefono, asignado_a,
     instrucciones_adicionales,
     anexo_firma_deaj, anexo_imprimir, anexo_imprimir_hoja_verde,
-    anexo_digitalizar, anexo_quemar_cd, anexo_usb, anexo_sobre_cerrado, anexo_otro
+    anexo_digitalizar, anexo_quemar_cd, anexo_usb, anexo_sobre_cerrado, anexo_otro,
+    tantos_original, tantos_acuse, tantos_copias_conocimiento, tantos_traslados
   } = req.body;
   const toBool = v => v === true || v === 'true' || v === 1 || v === '1' || v === 'on';
+  const toInt  = v => { const n = parseInt(v, 10); return isNaN(n) || n < 0 ? 0 : n; };
 
   if (!area_requirente || !numero_oficio || !autoridad_nombre || !autoridad_domicilio) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
