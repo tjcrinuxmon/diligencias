@@ -114,5 +114,6 @@ const AREAS = [
   'Dirección de Asuntos Laborales',
   'Dirección de Normatividad y Consulta',
   'Dirección de Asuntos HASL',
-  'Dirección de Contratos y Convenios'
+  'Dirección de Contratos y Convenios',
+  'Líder de Enlace Interinstitucional',
 ];
