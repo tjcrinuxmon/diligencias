@@ -138,6 +138,35 @@ try {
   console.error('Migration coordinador:', e.message);
 }
 
+// Migration: add 'director' role to CHECK constraint
+try {
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='usuarios'").get();
+  if (row && row.sql && !row.sql.includes("'director'")) {
+    db.pragma('foreign_keys = OFF');
+    db.exec(`DROP TABLE IF EXISTS usuarios_new`);
+    db.exec(`
+      CREATE TABLE usuarios_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        rol TEXT DEFAULT 'usuario' CHECK(rol IN ('admin','usuario','notificador','coordinador','director')),
+        area TEXT,
+        activo INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT (datetime('now','localtime'))
+      );
+      INSERT INTO usuarios_new SELECT * FROM usuarios;
+      DROP TABLE usuarios;
+      ALTER TABLE usuarios_new RENAME TO usuarios;
+    `);
+    db.pragma('foreign_keys = ON');
+    console.log('✅ Migración: rol director agregado');
+  }
+} catch(e) {
+  db.pragma('foreign_keys = ON');
+  console.error('Migration director:', e.message);
+}
+
 // Seed: default admin
 if (!db.prepare(`SELECT id FROM usuarios WHERE rol = 'admin' LIMIT 1`).get()) {
   const adminPwd = process.env.ADMIN_SEED_PASSWORD || require('crypto').randomBytes(12).toString('base64url');

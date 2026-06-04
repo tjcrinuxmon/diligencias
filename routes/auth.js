@@ -69,7 +69,7 @@ router.get('/sso', (req, res) => {
       return res.redirect('/diligencias?error=no_access');
     }
     // Sync from portal on every SSO login — normalize portal roles to diligencias roles
-    const VALID_ROLES = new Set(['admin', 'coordinador', 'notificador', 'usuario']);
+    const VALID_ROLES = new Set(['admin', 'coordinador', 'director', 'notificador', 'usuario']);
     const rol = VALID_ROLES.has(payload.rol) ? payload.rol : 'usuario';
     db.prepare('UPDATE usuarios SET nombre=?, rol=?, area=?, activo=1 WHERE email=?')
       .run(payload.nombre, rol, payload.area || '', payload.email);

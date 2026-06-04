@@ -67,7 +67,7 @@ function generateFolio() {
 
 // Helper: get user with role
 function getUser(userId) {
-  return db.prepare('SELECT id, rol FROM usuarios WHERE id = ?').get(userId);
+  return db.prepare('SELECT id, rol, area FROM usuarios WHERE id = ?').get(userId);
 }
 
 // GET all - with filters
@@ -86,6 +86,11 @@ router.get('/', auth, (req, res) => {
   if (currentUser?.rol === 'usuario') {
     where.push('d.creado_por = ?');
     params.push(req.session.userId);
+  }
+  // Directores ven todas las solicitudes de SU área
+  if (currentUser?.rol === 'director') {
+    where.push('d.area_requirente = ?');
+    params.push(currentUser.area || '');
   }
 
   if (estado) { where.push('d.estado = ?'); params.push(estado); }
@@ -135,6 +140,10 @@ router.get('/:id', auth, (req, res) => {
 
   const currentUserDetail = getUser(req.session.userId);
   if (currentUserDetail?.rol === 'usuario' && d.creado_por !== req.session.userId) {
+    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
+  }
+  // El director solo accede a diligencias de su área
+  if (currentUserDetail?.rol === 'director' && d.area_requirente !== currentUserDetail.area) {
     return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
   }
 
