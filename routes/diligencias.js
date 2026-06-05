@@ -494,8 +494,14 @@ router.get('/stats/resumen', auth, (req, res) => {
   const currentUser = getUser(req.session.userId);
   const isNotificador = currentUser?.rol === 'notificador';
   const isUsuario     = currentUser?.rol === 'usuario';
-  const filterClause = isNotificador ? 'AND asignado_a = ?' : isUsuario ? 'AND creado_por = ?' : '';
-  const filterParams = (isNotificador || isUsuario) ? [req.session.userId] : [];
+  const isDirector    = currentUser?.rol === 'director';
+  const filterClause = isNotificador ? 'AND asignado_a = ?'
+                     : isUsuario     ? 'AND creado_por = ?'
+                     : isDirector    ? 'AND area_requirente = ?'   // director: solo su área
+                     : '';
+  const filterParams = (isNotificador || isUsuario) ? [req.session.userId]
+                     : isDirector ? [currentUser.area || '']
+                     : [];
 
   const count = (extra = '') =>
     db.prepare(`SELECT COUNT(*) as n FROM diligencias WHERE 1=1 ${filterClause} ${extra}`).get(...filterParams).n;
