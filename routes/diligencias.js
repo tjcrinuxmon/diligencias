@@ -65,9 +65,18 @@ function generateFolio() {
   return `DIL-${year}${month}-${seq}`;
 }
 
+// Área de la coordinación central: sus coordinadores ven TODAS las diligencias.
+// Los coordinadores de cualquier otra área quedan acotados a su propia área.
+const COORD_AREA_GLOBAL = 'Coordinación de Análisis de Información y Control Documental';
+
 // Helper: get user with role
 function getUser(userId) {
   return db.prepare('SELECT id, rol, area FROM usuarios WHERE id = ?').get(userId);
+}
+
+// Coordinador acotado a un área específica (no es de la coordinación central)
+function isCoordinadorDeArea(user) {
+  return user?.rol === 'coordinador' && user.area !== COORD_AREA_GLOBAL;
 }
 
 // GET all - with filters
@@ -89,6 +98,11 @@ router.get('/', auth, (req, res) => {
   }
   // Directores ven todas las solicitudes de SU área
   if (currentUser?.rol === 'director') {
+    where.push('d.area_requirente = ?');
+    params.push(currentUser.area || '');
+  }
+  // Coordinadores de área ven solo su área; la coordinación central ve todo
+  if (isCoordinadorDeArea(currentUser)) {
     where.push('d.area_requirente = ?');
     params.push(currentUser.area || '');
   }
@@ -144,6 +158,10 @@ router.get('/:id', auth, (req, res) => {
   }
   // El director solo accede a diligencias de su área
   if (currentUserDetail?.rol === 'director' && d.area_requirente !== currentUserDetail.area) {
+    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
+  }
+  // El coordinador de área solo accede a diligencias de su área
+  if (isCoordinadorDeArea(currentUserDetail) && d.area_requirente !== currentUserDetail.area) {
     return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
   }
 
@@ -275,11 +293,14 @@ router.delete('/:id/documentos/:docId', auth, (req, res) => {
 
 // PUT edit diligencia (creador, admin o coordinador)
 router.put('/:id', auth, (req, res) => {
-  const d = db.prepare('SELECT creado_por FROM diligencias WHERE id = ?').get(req.params.id);
+  const d = db.prepare('SELECT creado_por, area_requirente FROM diligencias WHERE id = ?').get(req.params.id);
   if (!d) return res.status(404).json({ error: 'No encontrada' });
 
   const user = getUser(req.session.userId);
-  const canEdit = d.creado_por === req.session.userId || user?.rol === 'admin' || user?.rol === 'coordinador';
+  // El coordinador de área solo puede editar diligencias de su área
+  const coordPuede = user?.rol === 'coordinador' &&
+    (!isCoordinadorDeArea(user) || d.area_requirente === user.area);
+  const canEdit = d.creado_por === req.session.userId || user?.rol === 'admin' || coordPuede;
   if (!canEdit) {
     return res.status(403).json({ error: 'Sin permiso para editar esta diligencia' });
   }
@@ -382,8 +403,13 @@ router.patch('/:id/asignar', auth, (req, res) => {
     return res.status(403).json({ error: 'Solo coordinadores y administradores pueden asignar diligencias' });
   }
 
-  const d = db.prepare('SELECT id FROM diligencias WHERE id = ?').get(req.params.id);
+  const d = db.prepare('SELECT id, area_requirente FROM diligencias WHERE id = ?').get(req.params.id);
   if (!d) return res.status(404).json({ error: 'No encontrada' });
+
+  // El coordinador de área solo puede asignar diligencias de su área
+  if (isCoordinadorDeArea(currentUser) && d.area_requirente !== currentUser.area) {
+    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
+  }
 
   const { asignado_a } = req.body;
   if (asignado_a) {
@@ -409,12 +435,17 @@ router.patch('/:id/estado', auth, (req, res) => {
     return res.status(403).json({ error: 'Solo el coordinador o el notificador pueden cambiar el estado' });
   }
 
-  const d = db.prepare('SELECT creado_por, asignado_a FROM diligencias WHERE id = ?').get(req.params.id);
+  const d = db.prepare('SELECT creado_por, asignado_a, area_requirente FROM diligencias WHERE id = ?').get(req.params.id);
   if (!d) return res.status(404).json({ error: 'No encontrado' });
 
   // Notificadores: solo sus diligencias asignadas
   if (currentUser?.rol === 'notificador' && d.asignado_a !== req.session.userId) {
     return res.status(403).json({ error: 'Solo puedes modificar las diligencias asignadas a ti' });
+  }
+
+  // Coordinador de área: solo diligencias de su área
+  if (isCoordinadorDeArea(currentUser) && d.area_requirente !== currentUser.area) {
+    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
   }
 
   // Solo el creador puede cancelar
@@ -434,7 +465,7 @@ router.post('/:id/seguimiento', auth, upload.single('archivo_acuse'), async (req
 
   const currentUser = getUser(req.session.userId);
 
-  const d = db.prepare('SELECT creado_por, asignado_a FROM diligencias WHERE id = ?').get(diligencia_id);
+  const d = db.prepare('SELECT creado_por, asignado_a, area_requirente FROM diligencias WHERE id = ?').get(diligencia_id);
   if (!d) return res.status(404).json({ error: 'Diligencia no encontrada' });
 
   // Verificar acceso de visibilidad (mismas reglas que GET /:id)
@@ -442,6 +473,9 @@ router.post('/:id/seguimiento', auth, upload.single('archivo_acuse'), async (req
     return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
   }
   if (currentUser?.rol === 'notificador' && d.asignado_a !== req.session.userId) {
+    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
+  }
+  if (isCoordinadorDeArea(currentUser) && d.area_requirente !== currentUser.area) {
     return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
   }
 
@@ -495,12 +529,14 @@ router.get('/stats/resumen', auth, (req, res) => {
   const isNotificador = currentUser?.rol === 'notificador';
   const isUsuario     = currentUser?.rol === 'usuario';
   const isDirector    = currentUser?.rol === 'director';
+  const isCoordArea   = isCoordinadorDeArea(currentUser);   // coordinador acotado a su área
+  const porArea       = isDirector || isCoordArea;
   const filterClause = isNotificador ? 'AND asignado_a = ?'
                      : isUsuario     ? 'AND creado_por = ?'
-                     : isDirector    ? 'AND area_requirente = ?'   // director: solo su área
+                     : porArea       ? 'AND area_requirente = ?'   // director / coordinador de área: solo su área
                      : '';
   const filterParams = (isNotificador || isUsuario) ? [req.session.userId]
-                     : isDirector ? [currentUser.area || '']
+                     : porArea ? [currentUser.area || '']
                      : [];
 
   const count = (extra = '') =>
