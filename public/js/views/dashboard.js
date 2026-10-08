@@ -90,6 +90,6 @@ async function renderDashboard() {
       </div>
     `;
   } catch(e) {
-    el.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+    Carga.error(el, `No se pudo cargar el resumen: ${e.message}`, renderDashboard);
   }
 }

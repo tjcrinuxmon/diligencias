@@ -15,8 +15,16 @@ const API = {
     }
     if (data && !isFormData) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(data); }
     if (data && isFormData) { opts.body = data; }
-    const res = await fetch('/api/dil' + url, opts);
-    const text = await res.text();
+    let res, text;
+    Carga.inicio();
+    try {
+      res = await fetch('/api/dil' + url, opts);
+      text = await res.text();
+    } catch {
+      throw new Error('Sin conexión con el servidor. Revisa tu señal e intenta de nuevo.');
+    } finally {
+      Carga.fin();
+    }
     let json;
     try {
       json = JSON.parse(text);

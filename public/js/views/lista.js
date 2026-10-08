@@ -174,7 +174,10 @@ async function loadDiligencias() {
       `;
     }
   } catch(e) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="8"><div class="alert alert-error">${e.message}</div></td></tr>`;
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="8"></td></tr>';
+      Carga.error(tbody.querySelector('td'), `No se pudieron cargar las notificaciones: ${e.message}`, loadDiligencias);
+    }
   }
 }
 
