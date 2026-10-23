@@ -31,7 +31,9 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/api/uploads', express.static(UPLOADS_DIR));
+// Los archivos subidos viven en public/uploads, pero NO se sirven como estáticos: se entregan por
+// /api/uploads/:archivo, que exige sesión y permiso sobre la diligencia (routes/diligencias.js).
+app.use('/uploads', (req, res) => res.status(404).end());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
@@ -61,6 +63,7 @@ app.use((req, res, next) => {
 app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/usuarios',    require('./routes/usuarios'));
 app.use('/api/diligencias', require('./routes/diligencias'));
+app.get('/api/uploads/:archivo', require('./routes/diligencias').servirArchivo);
 
 // Serve SPA
 app.get('*', (req, res) => {

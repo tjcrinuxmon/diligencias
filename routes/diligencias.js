@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const db = require('../database');
 const mailer = require('../mailer');
 
@@ -20,8 +21,8 @@ function auth(req, res, next) {
 const storage = multer.diskStorage({
   destination: path.join(__dirname, '..', 'public', 'uploads'),
   filename: (req, file, cb) => {
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, unique + path.extname(file.originalname));
+    // La extensión ya pasó por el fileFilter (lista blanca); el nombre no es adivinable.
+    cb(null, Date.now() + '-' + require('crypto').randomUUID() + path.extname(file.originalname).toLowerCase());
   }
 });
 
@@ -30,7 +31,8 @@ const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') cb(null, true);
+    // Extensión y tipo declarado; el contenido se verifica después (verificarContenido).
+    if (file.mimetype === 'application/pdf' && path.extname(file.originalname).toLowerCase() === '.pdf') cb(null, true);
     else cb(new Error('Solo se permiten archivos PDF'));
   }
 });
@@ -50,7 +52,8 @@ const uploadDocs = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (ALLOWED_DOC_MIMES.has(file.mimetype) || ALLOWED_DOC_EXTS.has(ext)) cb(null, true);
+    // Antes bastaba una de las dos: un .html con tipo application/pdf pasaba y se servía como página.
+    if (ALLOWED_DOC_MIMES.has(file.mimetype) && ALLOWED_DOC_EXTS.has(ext)) cb(null, true);
     else cb(new Error('Solo se permiten archivos PDF, DOC, DOCX o ZIP'));
   }
 });
@@ -77,6 +80,78 @@ function getUser(userId) {
 // Coordinador acotado a un área específica (no es de la coordinación central)
 function isCoordinadorDeArea(user) {
   return user?.rol === 'coordinador' && user.area !== COORD_AREA_GLOBAL;
+}
+
+// ¿Puede este usuario ver la diligencia? Mismas reglas que el listado (GET /).
+function puedeVerDiligencia(user, d) {
+  if (!user || !d) return false;
+  if (user.rol === 'notificador') return d.asignado_a === user.id;
+  if (user.rol === 'usuario')     return d.creado_por === user.id;
+  if (user.rol === 'director')    return d.area_requirente === user.area;
+  if (isCoordinadorDeArea(user))  return d.area_requirente === user.area;
+  return true; // admin y coordinación central
+}
+
+// Carga la diligencia de :id y exige que el usuario pueda verla. Va antes de multer, para no
+// escribir en disco archivos de una petición no autorizada.
+function exigirDiligencia(req, res, next) {
+  const d = db.prepare('SELECT id, creado_por, asignado_a, area_requirente FROM diligencias WHERE id = ?').get(req.params.id);
+  if (!d) return res.status(404).json({ error: 'Diligencia no encontrada' });
+  if (!puedeVerDiligencia(getUser(req.session.userId), d)) return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
+  req.diligencia = d;
+  next();
+}
+
+// Firma de los primeros bytes según la extensión (el tipo que manda el navegador no es confiable).
+const FIRMAS = {
+  '.pdf':  [Buffer.from('%PDF-')],
+  '.docx': [Buffer.from([0x50, 0x4B, 0x03, 0x04])],
+  '.zip':  [Buffer.from([0x50, 0x4B, 0x03, 0x04]), Buffer.from([0x50, 0x4B, 0x05, 0x06])],
+  '.doc':  [Buffer.from([0xD0, 0xCF, 0x11, 0xE0])],
+};
+function contenidoValido(file) {
+  const firmas = FIRMAS[path.extname(file.filename).toLowerCase()];
+  if (!firmas) return false;
+  const buf = Buffer.alloc(8);
+  const fd = fs.openSync(file.path, 'r');
+  try { fs.readSync(fd, buf, 0, 8, 0); } finally { fs.closeSync(fd); }
+  return firmas.some(f => buf.subarray(0, f.length).equals(f));
+}
+const borrarSubidos = (files = []) => files.forEach(f => fs.unlink(f.path, () => {}));
+
+// Envuelve un middleware de multer para responder 400 en JSON (tipo o tamaño no permitido)
+// en lugar de dejar el error al manejador por omisión de Express, que responde HTML con la traza.
+const conSubida = (mw) => (req, res, next) => mw(req, res, (err) => {
+  if (!err) return next();
+  const msg = err.code === 'LIMIT_FILE_SIZE' ? 'El archivo excede el tamaño máximo'
+            : err.code === 'LIMIT_UNEXPECTED_FILE' ? 'Demasiados archivos'
+            : err.message;
+  res.status(400).json({ error: msg });
+});
+
+// GET /api/uploads/:archivo — sirve un documento o acuse solo a quien puede ver su diligencia.
+// (Antes la carpeta se servía como estática, sin sesión.)
+const UPLOAD_DIR = path.join(__dirname, '..', 'public', 'uploads');
+const TIPOS_SERVIDOS = { '.pdf': 'application/pdf', '.doc': 'application/msword', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.zip': 'application/zip' };
+function servirArchivo(req, res) {
+  if (!req.session.userId) return res.status(401).json({ error: 'No autenticado' });
+  const user = db.prepare('SELECT id, rol, area, activo FROM usuarios WHERE id = ?').get(req.session.userId);
+  if (!user || !user.activo) return res.status(401).json({ error: 'Sesión inválida' });
+  const nombre = path.basename(req.params.archivo); // sin rutas: solo el nombre del archivo
+  const ruta = `/uploads/${nombre}`;
+  const ref = db.prepare('SELECT diligencia_id, nombre_original FROM documentos WHERE archivo = ?').get(ruta)
+           || db.prepare('SELECT diligencia_id, NULL AS nombre_original FROM seguimiento WHERE archivo_acuse = ?').get(ruta);
+  const d = ref && db.prepare('SELECT id, creado_por, asignado_a, area_requirente FROM diligencias WHERE id = ?').get(ref.diligencia_id);
+  if (!d || !puedeVerDiligencia(user, d)) return res.status(404).json({ error: 'Archivo no disponible' });
+  const abs = path.join(UPLOAD_DIR, nombre);
+  if (!fs.existsSync(abs)) return res.status(404).json({ error: 'Archivo no disponible' });
+  const ext = path.extname(nombre).toLowerCase();
+  res.setHeader('Content-Type', TIPOS_SERVIDOS[ext] || 'application/octet-stream');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Los PDF se abren en el navegador (los enlaces usan target=_blank); el resto se descarga.
+  if (ext === '.pdf') res.setHeader('Content-Disposition', 'inline');
+  else res.attachment(ref.nombre_original || nombre);
+  fs.createReadStream(abs).pipe(res);
 }
 
 // GET all - with filters
@@ -152,16 +227,7 @@ router.get('/:id', auth, (req, res) => {
   `).get(req.params.id);
   if (!d) return res.status(404).json({ error: 'No encontrada' });
 
-  const currentUserDetail = getUser(req.session.userId);
-  if (currentUserDetail?.rol === 'usuario' && d.creado_por !== req.session.userId) {
-    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
-  }
-  // El director solo accede a diligencias de su área
-  if (currentUserDetail?.rol === 'director' && d.area_requirente !== currentUserDetail.area) {
-    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
-  }
-  // El coordinador de área solo accede a diligencias de su área
-  if (isCoordinadorDeArea(currentUserDetail) && d.area_requirente !== currentUserDetail.area) {
+  if (!puedeVerDiligencia(getUser(req.session.userId), d)) {
     return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
   }
 
@@ -259,11 +325,13 @@ router.post('/', auth, (req, res) => {
 });
 
 // POST upload documents to an existing diligencia
-router.post('/:id/documentos', auth, uploadDocs.array('documentos', 10), (req, res) => {
-  const diligencia_id = req.params.id;
-  const d = db.prepare('SELECT id FROM diligencias WHERE id = ?').get(diligencia_id);
-  if (!d) return res.status(404).json({ error: 'Diligencia no encontrada' });
+router.post('/:id/documentos', auth, exigirDiligencia, conSubida(uploadDocs.array('documentos', 10)), (req, res) => {
+  const diligencia_id = req.diligencia.id;
   if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No se enviaron archivos' });
+  if (!req.files.every(contenidoValido)) {
+    borrarSubidos(req.files);
+    return res.status(400).json({ error: 'El contenido de algún archivo no corresponde a PDF, DOC, DOCX o ZIP' });
+  }
 
   const docStmt = db.prepare(`INSERT INTO documentos (diligencia_id, nombre_original, archivo, tipo, tamanio, subido_por) VALUES (?,?,?,?,?,?)`);
   req.files.forEach(f => {
@@ -459,36 +527,26 @@ router.patch('/:id/estado', auth, (req, res) => {
 });
 
 // POST seguimiento (con archivo)
-router.post('/:id/seguimiento', auth, upload.single('archivo_acuse'), async (req, res) => {
+router.post('/:id/seguimiento', auth, exigirDiligencia, conSubida(upload.single('archivo_acuse')), async (req, res) => {
   const { fecha_entrega, hora_entrega, nombre_recibio, observaciones, lugar, tipo } = req.body;
   const diligencia_id = req.params.id;
 
   const currentUser = getUser(req.session.userId);
 
-  const d = db.prepare('SELECT creado_por, asignado_a, area_requirente FROM diligencias WHERE id = ?').get(diligencia_id);
-  if (!d) return res.status(404).json({ error: 'Diligencia no encontrada' });
-
-  // Verificar acceso de visibilidad (mismas reglas que GET /:id)
-  if (currentUser?.rol === 'usuario' && d.creado_por !== req.session.userId) {
-    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
-  }
-  if (currentUser?.rol === 'notificador' && d.asignado_a !== req.session.userId) {
-    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
-  }
-  if (isCoordinadorDeArea(currentUser) && d.area_requirente !== currentUser.area) {
-    return res.status(403).json({ error: 'Sin acceso a esta diligencia' });
-  }
+  // La visibilidad ya la validó exigirDiligencia (antes de guardar el archivo).
+  const rechazar = (status, error) => { borrarSubidos(req.file ? [req.file] : []); return res.status(status).json({ error }); };
+  if (req.file && !contenidoValido(req.file)) return rechazar(400, 'El archivo no es un PDF válido');
 
   const esFinal = tipo === 'final';
 
   // Solo admin/coordinador/notificador pueden hacer el cierre (entrega final)
   if (esFinal && !['admin', 'coordinador', 'notificador'].includes(currentUser?.rol)) {
-    return res.status(403).json({ error: 'Solo el coordinador o el notificador pueden registrar la entrega final' });
+    return rechazar(403, 'Solo el coordinador o el notificador pueden registrar la entrega final');
   }
 
   // La hora es obligatoria en la entrega final
   if (esFinal && !hora_entrega) {
-    return res.status(400).json({ error: 'La hora de entrega es obligatoria para la entrega final' });
+    return rechazar(400, 'La hora de entrega es obligatoria para la entrega final');
   }
 
   const archivo = req.file ? `/uploads/${req.file.filename}` : null;
@@ -557,3 +615,4 @@ router.get('/stats/resumen', auth, (req, res) => {
 });
 
 module.exports = router;
+module.exports.servirArchivo = servirArchivo;
